@@ -1,6 +1,6 @@
 # prelude
 AC_INIT([sid], [0.0], [lennart.weckeck@mailbox.org])
-AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+AM_INIT_AUTOMAKE([foreign subdir-objects -Wall -Werror])
 
 # make sure we are in source directory
 AC_CONFIG_SRCDIR(sid.cpp)
@@ -14,5 +14,5 @@ AC_CHECK_LIB([m],[cos])
 AC_CHECK_LIB([gslcblas],[cblas_dgemm])
 AC_CHECK_LIB([gsl],[gsl_blas_dgemm])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile test/Makefile])
 AC_OUTPUT

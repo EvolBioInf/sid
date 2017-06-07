@@ -4,8 +4,19 @@ sid
 # C++
 *.o
 
+# misc
+*.swp
+.deps
+/.dirstamp
+
 # http://www.gnu.org/software/automake
+Makefile
 Makefile.in
+/test-driver
+test-suite.log
+test.log
+test.trs
+
 
 # http://www.gnu.org/software/autoconf
 /autom4te.cache
@@ -14,6 +25,8 @@ Makefile.in
 /aclocal.m4
 /compile
 /config.h.in
+/config.log
+/config.status
 /configure
 /depcomp
 /install-sh
