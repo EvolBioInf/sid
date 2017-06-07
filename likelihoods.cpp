@@ -1,14 +1,12 @@
 #include <array>
 #include <cmath>
-#include <cstdio>
-#include <gsl/gsl_multimin.h>
-#include <gsl/gsl_sf_gamma.h>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <numeric>
 #include <vector>
 
+#include "simplex.hpp"
 #include "likelihoods.hpp"
 
 //#define REFERENCE
@@ -153,53 +151,19 @@ array<double, 4> computeNucleotideDistribution(map<Profile, int>& profiles) {
 }
 
 void computeLikelihoods(map<Profile, int> profiles) {
-    // starting point
-    gsl_vector* x = gsl_vector_alloc(2);
-    gsl_vector_set(x, 0, DEFAULT_PI);
-    gsl_vector_set(x, 1, DEFAULT_EPSILON);
-
-    gsl_vector* step_sizes = gsl_vector_alloc(2);
-    gsl_vector_set_all(step_sizes, DEFAULT_STEPSIZE);
-
-    gsl_multimin_fminimizer* minimizer = gsl_multimin_fminimizer_alloc(gsl_multimin_fminimizer_nmsimplex2, 2);
-    gsl_multimin_function minimize;
-    minimize.n = 2;
-    minimize.f = &logLikelihood;
-
     array<double, 4> nd = computeNucleotideDistribution(profiles);
     struct LikelihoodParams p {profiles, nd};
-    minimize.params = (void*)&p;
 
-    gsl_multimin_fminimizer_set(minimizer, &minimize, x, step_sizes);
-
-    int i = 0;
-    int status = 0;
-    do {
-        ++i;
-        status = gsl_multimin_fminimizer_iterate(minimizer);
-        if (status != 0) {
-            break;
-        }
-
-        double size = gsl_multimin_fminimizer_size(minimizer);
-        status = gsl_multimin_test_size(size, 1e-5);
-
-        if (status == GSL_SUCCESS) {
-            cerr << "Converged in " << i << " iterations." << endl;
-        }
-        //printf ("%5d %10.3e %10.3e f() = %7.3f size = %.3f\n", i, gsl_vector_get (minimizer->x, 0), gsl_vector_get (minimizer->x, 1), minimizer->fval, size);
-    } while (status == GSL_CONTINUE && i < 1000);
-    if (status == GSL_CONTINUE) {
-        cerr << "Error: max likelihood commputation did not converge in " << i << " iterations!" << endl;
-    }
-
-    double pi = gsl_vector_get(minimizer->x, 0);
-    double epsilon = gsl_vector_get(minimizer->x, 1);
+    Simplex2D simplex {2, DEFAULT_PI, DEFAULT_EPSILON, DEFAULT_STEPSIZE};
+    Simplex2DResult result = simplex.run(logLikelihood, (void*)&p);
+    double pi = result.x1;
+    double epsilon = result.x2;
+    double logL = result.fval;
 
     cout << scientific;
     cout << "# pi: " <<  pi << '\t';
     cout << "epsilon: " <<  epsilon << '\t';
-    cout << "log likelihood: " << minimizer->fval << endl;
+    cout << "log likelihood: " << logL << endl;
 
     for(auto i = profiles.begin(); i != profiles.end(); ++i) {
         int count;
@@ -209,8 +173,4 @@ void computeLikelihoods(map<Profile, int> profiles) {
         double l2 = profileLikelihoodHeterozygous(p, nd, epsilon);
         cout << p << '\t' << l1 << '\t' << l2 << endl;
     } 
-
-    gsl_vector_free(x);
-    gsl_vector_free(step_sizes);
-    gsl_multimin_fminimizer_free(minimizer);
 }
