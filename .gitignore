@@ -1,10 +1,12 @@
 # Repository-specific
-sid
+/sid
+/test/test
 
 # C++
 *.o
 
 # misc
+\#*
 *.swp
 .deps
 /.dirstamp
