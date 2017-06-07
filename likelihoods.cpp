@@ -17,26 +17,28 @@ const double DEFAULT_STEPSIZE = 1e-4;
 const double DEFAULT_PI = 1e-3;
 const double DEFAULT_EPSILON = 1e-3;
 
-vector<double> lngamma_cache(100, -1);
+struct MemoizedLogGamma {
+    // uncached values are indicated by -2, since the minimum of lngamma in the positive reals is about -0.12
+    vector<double> cache = vector<double>(100, -2.0);
 
-double inline lngamma(int x) {
-    // should not happen, but just in case...
-    if (x < 0) {
-        return gsl_sf_lngamma(x);
-    } else {
-        if ((unsigned)x >= lngamma_cache.size()) {
-            lngamma_cache.resize(x+1, -1.0);
+    double operator()(int x) {
+        // should not happen, but just in case...
+        if (x < 0) {
+            return gsl_sf_lngamma(x);
+        } else {
+            if ((unsigned)x >= cache.size()) {
+                cache.resize(x+1, -2.0);
+            }
+            if (cache[x] < -1) {
+                cache[x] = gsl_sf_lngamma(x);
+            }
+            return cache[x];
         }
-        if (lngamma_cache[x] < 0) {
-            lngamma_cache[x] = gsl_sf_lngamma(x);
-        }
-        return lngamma_cache[x];
-    }
-}
+    };
+} lngamma {};
 
-/*
- * Source: https://arachnoid.com/binomial_probability/index.html 02.06.2017
- */
+
+// Source: https://arachnoid.com/binomial_probability/index.html 02.06.2017
 double binom_probability_gamma(int n, int k, double p) {
     //return exp(gsl_sf_lngamma(n+1) - gsl_sf_lngamma(k+1) - gsl_sf_lngamma(n-k+1) + log(p)*k + log(1-p)*(n-k));
     return exp(lngamma(n+1) - lngamma(k+1) - lngamma(n-k+1) + log(p)*k + log(1-p)*(n-k));
