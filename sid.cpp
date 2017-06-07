@@ -35,7 +35,7 @@ int main() {
             exit(EXIT_FAILURE);
         }
 
-        Profile p = parseRead((read));
+        Profile p = parseRead(read, reference_base);
         if (p[COV] >= 4) {
             positions.insert(make_pair(pos, p));
             profiles.push_back(p);

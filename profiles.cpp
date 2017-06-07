@@ -51,7 +51,28 @@ Profile parseRead(const string read, char reference) {
                 // skip parsed number + that number of bases after the number
                 i += first_after_number + length;
                 break;
-            } default:
+            }
+            // FIXME come up with better solution than nested switch
+            case '.':
+            case ',': {
+                switch (reference) {
+                case 'a':
+                case 'A':
+                    ++p[A]; break;
+                case 'c':
+                case 'C':
+                    ++p[C]; break;
+                case 'g':
+                case 'G':
+                    ++p[G]; break;
+                case 't':
+                case 'T':
+                    ++p[T]; break;
+                default:
+                    break;
+                }
+            }
+            default:
                 continue;
         }
     }
@@ -59,6 +80,6 @@ Profile parseRead(const string read, char reference) {
     return p;
 }
 
-ostream& operator<<(ostream& os, const Profile& p) {
-    return os << "a:" << p[0] << " c:" << p[1] << " g:" << p[2] << " t:" << p[3] << " n:" << p[4];
+ostream& std::operator<<(ostream& os, const Profile& p) {
+    return os << "[" << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << "](" << p[4] << ")";
 }

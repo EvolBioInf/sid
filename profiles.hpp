@@ -16,7 +16,10 @@ const int COV = 4;
 
 Profile operator+(const Profile& lhs, const Profile& rhs);
 Profile operator*(const Profile& lhs, const int mult);
-std::ostream& operator<<(std::ostream& os, const Profile& p);
+
+namespace std {
+    std::ostream& operator<<(std::ostream& os, const Profile& p);
+}
 
 Profile parseRead(const std::string read, char reference = 'n');
 

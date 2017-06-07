@@ -8,6 +8,12 @@
 
 using namespace std;
 
+//namespace std {
+//    std::ostream& operator<<(std::ostream& os, const Profile& a) {
+//        return os << "[" << a[0] << " " << a[1] << " " << a[2] << " " << a[3] << "]";
+//    }
+//}
+
 TEST_CASE("arithmetic operatons on profiles work correctly", "[operators]") {
     SECTION("addition") {
         Profile a {0,1,0,1,2};
@@ -63,12 +69,12 @@ TEST_CASE("sequence reads in 'samtools mpileup' format are parsed correctly", "[
         REQUIRE(parseRead("a-3act") == p);
         REQUIRE(parseRead("-3acta") == p);
     }
-    //SECTION("correctly handel reference bases") {
-    //    Profile p {1,1,0,0,2};
-    //    REQUIRE(parseRead("a.", 'g') == p);
-    //    REQUIRE(parseRead(",g", 'g') == p);
-    //    REQUIRE(parseRead("ag", 't') == p);
-    //    REQUIRE(parseRead("ag", 'n') == p);
-    //    REQUIRE(parseRead("ag") == p);
-    //}
+    SECTION("correctly handel reference bases") {
+        Profile p {1,0,1,0,2};
+        CHECK(parseRead("a.", 'g') == p);
+        CHECK(parseRead(",g", 'a') == p);
+        CHECK(parseRead("ag", 't') == p);
+        CHECK(parseRead("ag", 'n') == p);
+        CHECK(parseRead("ag") == p);
+    }
 }

@@ -38,6 +38,7 @@ struct MemoizedLogGamma {
 } lngamma {};
 
 
+
 // Source: https://arachnoid.com/binomial_probability/index.html 02.06.2017
 double binom_probability_gamma(int n, int k, double p) {
     //return exp(gsl_sf_lngamma(n+1) - gsl_sf_lngamma(k+1) - gsl_sf_lngamma(n-k+1) + log(p)*k + log(1-p)*(n-k));
