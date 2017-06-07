@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <numeric>
 #include <vector>
 
 #include "likelihoods.hpp"
@@ -139,29 +140,16 @@ double logLikelihood(const gsl_vector* v, void *params_) {
 }
 
 array<double, 4> computeNucleotideDistribution(map<Profile, int>& profiles) {
-    long int a = 0;
-    long int c = 0;
-    long int g = 0;
-    long int t = 0;
-    for(auto i = profiles.begin(); i != profiles.end(); ++i) {
-        // occurences of base in profile * occurences of profile in data set
-        a += i->first[A] * i->second;
-        c += i->first[C] * i->second;
-        g += i->first[G] * i->second;
-        t += i->first[T] * i->second;
-    }
-    long int n = a + c + g + t;
-    return array<double, 4> {(double)a/n, (double)c/n, (double)g/n, (double)t/n};
-}
+    Profile acc {0,0,0,0};
+    acc = accumulate(profiles.begin(), profiles.end(), acc, 
+            [](Profile acc, pair<Profile, int> p) {return acc + p.first * p.second;});
 
-int maxCoverage(map<Profile, int>& profiles) {
-    int max = 0;
-    for(auto it = profiles.begin(); it != profiles.end(); ++it) {
-        if (it->first[COV] > max) {
-            max = it->first[COV];
-        }
+    int n = acc[COV];
+    if (n != 0) {
+        return {(double)acc[A]/n, (double)acc[C]/n, (double)acc[G]/n, (double)acc[T]/n};
+    } else {
+        return {0.25,0.25,0.25,0.25};
     }
-    return max;
 }
 
 void computeLikelihoods(map<Profile, int> profiles) {
