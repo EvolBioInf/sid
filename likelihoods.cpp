@@ -37,17 +37,14 @@ struct MemoizedLogGamma {
     };
 } lngamma {};
 
-double inline multinomialCoefficient(int n, int n1, int n2, int n3, int n4) {
-    return exp(lngamma(n+1) - lngamma(n1+1) - lngamma(n2+1) - lngamma(n3+1) - lngamma(n4+1));
-}
-
 double inline profileLikelihoodHomozygous(Profile p, array<double, 4>& nucleotide_dist, double p_error) {
     double l = 0.0;
 
     for (int i = 0; i < 4; ++i) {
 	l += nucleotide_dist[i] * pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
     }
-    l *= multinomialCoefficient(p[COV], p[A], p[C], p[G], p[T]);
+    // compute multiomial coefficient with logGamma trick
+    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
 
     return l; 
 }
@@ -59,7 +56,8 @@ double inline profileLikelihoodHeterozygous(Profile p, array<double, 4>& nucleot
 	    l += nucleotide_dist[i] * nucleotide_dist[j] * pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
 	}
     }
-    l *= multinomialCoefficient(p[COV], p[A], p[C], p[G], p[T]);
+    // compute multiomial coefficient with logGamma trick
+    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
 
     double s = 0.0;
     for (int i = 0; i < 4; ++i) {
