@@ -126,12 +126,9 @@ double logLikelihood(const gsl_vector* v, void *params_) {
     }
 
     double likelihood = 0;
-    for(auto i = profiles.begin(); i != profiles.end(); ++i) {
-        int count;
-        Profile p;
-        tie(p, count) = *i;
-        double l1 = profileLikelihoodHomozygous(p, nd, epsilon);
-        double l2 = profileLikelihoodHeterozygous(p, nd, epsilon);
+    for (const auto& [profile, count] : profiles) {
+        double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
+        double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
         double l = (1.0 - pi) * l1 + pi * l2;
         if (l > 0) {
             likelihood += log(l) * count;
@@ -155,10 +152,10 @@ array<double, 4> computeNucleotideDistribution(map<Profile, int>& profiles) {
 
 void computeLikelihoods(map<Profile, int> profiles) {
     array<double, 4> nd = computeNucleotideDistribution(profiles);
-    struct LikelihoodParams p {profiles, nd};
+    struct LikelihoodParams params {profiles, nd};
 
     Simplex2D simplex {2, DEFAULT_PI, DEFAULT_EPSILON, DEFAULT_STEPSIZE};
-    Simplex2DResult result = simplex.run(logLikelihood, (void*)&p);
+    Simplex2DResult result = simplex.run(logLikelihood, (void*)&params);
     double pi = result.x1;
     double epsilon = result.x2;
     double logL = result.fval;
@@ -168,12 +165,9 @@ void computeLikelihoods(map<Profile, int> profiles) {
     cout << "epsilon: " <<  epsilon << '\t';
     cout << "log likelihood: " << logL << endl;
 
-    for(auto i = profiles.begin(); i != profiles.end(); ++i) {
-        int count;
-        Profile p;
-        tie(p, count) = *i;
-        double l1 = profileLikelihoodHomozygous(p, nd, epsilon);
-        double l2 = profileLikelihoodHeterozygous(p, nd, epsilon);
-        cout << p << '\t' << l1 << '\t' << l2 << endl;
+    for (const auto& [profile, count] : profiles) {
+        double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
+        double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
+        cout << profile << '\t' << l1 << '\t' << l2 << endl;
     } 
 }
