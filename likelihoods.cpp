@@ -9,8 +9,6 @@
 #include "simplex.hpp"
 #include "likelihoods.hpp"
 
-//#define REFERENCE
-
 using namespace std;
 
 const double DEFAULT_STEPSIZE = 1e-4;
@@ -25,7 +23,9 @@ struct MemoizedLogGamma {
         // should not happen, but just in case...
         if (x < 0) {
             return gsl_sf_lngamma(x);
-        } else {
+        } else if (x == 0) {
+	    return 0;
+	} else {
             if ((unsigned)x >= cache.size()) {
                 cache.resize(x+1, -2.0);
             }
@@ -37,72 +37,36 @@ struct MemoizedLogGamma {
     };
 } lngamma {};
 
-
-
-// Source: https://arachnoid.com/binomial_probability/index.html 02.06.2017
-double binom_probability_gamma(int n, int k, double p) {
-    //return exp(gsl_sf_lngamma(n+1) - gsl_sf_lngamma(k+1) - gsl_sf_lngamma(n-k+1) + log(p)*k + log(1-p)*(n-k));
-    return exp(lngamma(n+1) - lngamma(k+1) - lngamma(n-k+1) + log(p)*k + log(1-p)*(n-k));
+double inline multinomialCoefficient(int n, int n1, int n2, int n3, int n4) {
+    return exp(lngamma(n+1) - lngamma(n1+1) - lngamma(n2+1) - lngamma(n3+1) - lngamma(n4+1));
 }
 
 double inline profileLikelihoodHomozygous(Profile p, array<double, 4>& nucleotide_dist, double p_error) {
-#ifndef REFERENCE
     double l = 0.0;
 
     for (int i = 0; i < 4; ++i) {
-        l += nucleotide_dist[i] * binom_probability_gamma(p[COV], p[COV] - p[i], p_error);
+	l += nucleotide_dist[i] * pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
     }
-#else
-    double l = 0.0;
-    double g = 0.0;
+    l *= multinomialCoefficient(p[COV], p[A], p[C], p[G], p[T]);
 
-    for (int i = 0; i < 4; ++i) {
-        l += nucleotide_dist[i] * pow(1-p_error, p[i]) * pow(p_error / 3.0, p[COV] - p[i]);
-        g += gsl_sf_lngamma(p[i] + 1);
-    }
-    g = exp(gsl_sf_lngamma(p[COV] + 1) - g);
-    l *= g;
-#endif
     return l; 
 }
 
 double inline profileLikelihoodHeterozygous(Profile p, array<double, 4>& nucleotide_dist, double p_error) {
-#ifndef REFERENCE
     double l = 0.0;
     for (int i = 0; i < 4; ++i) {
         for (int j = i+1; j < 4; ++j) {
-            double summand = 2 * nucleotide_dist[i] * nucleotide_dist[j];
-            summand *= binom_probability_gamma(p[COV], p[COV] - p[i] - p[j], 2.0/3.0 * p_error);
-            summand *= binom_probability_gamma(p[i] + p[j], p[i], 0.5);
-            l += summand;
-        }
+	    l += nucleotide_dist[i] * nucleotide_dist[j] * pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
+	}
     }
-    double s = 0;
+    l *= multinomialCoefficient(p[COV], p[A], p[C], p[G], p[T]);
+
+    double s = 0.0;
     for (int i = 0; i < 4; ++i) {
        s += nucleotide_dist[i] * nucleotide_dist[i];
     }
-    l /= (1-s);
-#else
-    double g = 0.0;
-    for (int i = 0; i < 4; ++i) {
-        g += gsl_sf_lngamma(p[i] + 1);
-    }
-    g = exp(gsl_sf_lngamma(p[COV] + 1) - g);
+    l /= (1 - s);
 
-    double S = 0.0;
-    for (int i = 0; i < 4; ++i) {
-        S += nucleotide_dist[i] * nucleotide_dist[i];
-    }
-    S = 1.0 - S;
-
-    double l = 0.0;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = i+1; j < 4; ++j) {
-            l += nucleotide_dist[i] * nucleotide_dist[j] / S * pow(0.5 - p_error / 3.0, p[i]+p[j]) * pow(p_error / 3.0, p[COV] - p[i] - p[j]);
-        }
-    }
-    l *= g;
-#endif
     return l;
 }
 
@@ -138,7 +102,7 @@ double logLikelihood(const gsl_vector* v, void *params_) {
 }
 
 array<double, 4> computeNucleotideDistribution(map<Profile, int>& profiles) {
-    Profile acc {0,0,0,0};
+    Profile acc {0,0,0,0,0};
     acc = accumulate(profiles.begin(), profiles.end(), acc, 
             [](Profile acc, pair<Profile, int> p) {return acc + p.first * p.second;});
 
