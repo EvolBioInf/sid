@@ -14,6 +14,7 @@
 
 #include "profiles.hpp"
 #include "likelihoods.hpp"
+#include "stats.hpp"
 
 using namespace std;
 
@@ -55,7 +56,8 @@ void processFile(FILE* input) {
     cerr << "Parsed " << positions.size() << " reads" << endl;
     cerr << "Found " << profile_counts.size() << " distict profiles" << endl;
 
-    computeLikelihoods(profile_counts);
+    vector<pair<double, double>> profile_likelihoods = computeLikelihoods(profile_counts);
+    vector<double> p_values = likelihoodRatioTest(profile_likelihoods);
 }
 
 void printHelp(char* program_name) {

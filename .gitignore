@@ -8,8 +8,11 @@
 # misc
 \#*
 *.swp
+*~
 .deps
 /.dirstamp
+TAGS
+tags
 
 # http://www.gnu.org/software/automake
 Makefile
