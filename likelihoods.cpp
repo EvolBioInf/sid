@@ -45,7 +45,7 @@ double inline profileLikelihoodHomozygous(const Profile& p, const array<double, 
     // compute multiomial coefficient with logGamma trick
     l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
 
-    return l; 
+    return l;
 }
 
 double inline profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
