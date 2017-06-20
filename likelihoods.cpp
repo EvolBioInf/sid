@@ -68,10 +68,12 @@ double inline profileLikelihoodHeterozygous(const Profile& p, const array<double
 }
 
 struct LikelihoodParams {
-    map<Profile, int>& profiles;
+    const vector<Profile>& profiles;
+    const vector<int>& counts;
     array<double, 4> nucleotide_dist;
 
-    LikelihoodParams(map<Profile, int>& p, array<double, 4> nd) : profiles{p}, nucleotide_dist{nd} {}
+    LikelihoodParams(const vector<Profile>& ps, const vector<int>& cs, array<double, 4> nd)
+        : profiles{ps}, counts{cs}, nucleotide_dist{nd} {}
 };
 
 double logLikelihood(const gsl_vector* v, void *params_) {
@@ -79,7 +81,8 @@ double logLikelihood(const gsl_vector* v, void *params_) {
     double epsilon = gsl_vector_get(v, 1);
 
     struct LikelihoodParams* params = (struct LikelihoodParams*)params_;
-    map<Profile, int>& profiles = params->profiles;
+    const vector<Profile>& profiles = params->profiles;
+    const vector<int>& counts = params->counts;
     array<double, 4>& nd = params->nucleotide_dist;
 
     if (pi < 0 || pi > 1 || epsilon < 0 || epsilon > 1) {
@@ -87,21 +90,23 @@ double logLikelihood(const gsl_vector* v, void *params_) {
     }
 
     double likelihood = 0;
-    for (const auto& [profile, count] : profiles) {
-        double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
-        double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
+    // for (const auto& [profile, count] : profiles) {
+    for (int i = 0; i < profiles.size(); ++i) {
+        double l1 = profileLikelihoodHomozygous(profiles[i], nd, epsilon);
+        double l2 = profileLikelihoodHeterozygous(profiles[i], nd, epsilon);
         double l = (1.0 - pi) * l1 + pi * l2;
         if (l > 0) {
-            likelihood += log(l) * count;
+            likelihood += log(l) * counts[i];
         }
-    } 
+    }
     return -likelihood;
 }
 
-array<double, 4> computeNucleotideDistribution(map<Profile, int>& profiles) {
+array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profiles, const std::vector<int>& counts) {
     Profile acc {0,0,0,0,0};
-    acc = accumulate(profiles.begin(), profiles.end(), acc, 
-            [](Profile acc, pair<Profile, int> p) {return acc + p.first * p.second;});
+    for (int i = 0; i < profiles.size(); ++i) {
+        acc = acc + profiles[i] * counts[i];
+    }
 
     int n = acc[COV];
     if (n != 0) {
@@ -112,9 +117,9 @@ array<double, 4> computeNucleotideDistribution(map<Profile, int>& profiles) {
 }
 
 // return likelihoods in map iterator order
-vector<pair<double, double>> computeLikelihoods(map<Profile, int> profiles) {
-    array<double, 4> nd = computeNucleotideDistribution(profiles);
-    struct LikelihoodParams params {profiles, nd};
+vector<pair<double, double>> computeLikelihoods(const vector<Profile>& profiles, const vector<int>& counts) {
+    array<double, 4> nd = computeNucleotideDistribution(profiles, counts);
+    struct LikelihoodParams params {profiles, counts, nd};
 
     Simplex2D simplex {2, DEFAULT_PI, DEFAULT_EPSILON, DEFAULT_STEPSIZE};
     Simplex2DResult result = simplex.run(logLikelihood, (void*)&params);
@@ -122,19 +127,16 @@ vector<pair<double, double>> computeLikelihoods(map<Profile, int> profiles) {
     double epsilon = result.x2;
     double logL = result.fval;
 
-    cout << scientific;
-    cout << "# pi: " <<  pi << '\t';
-    cout << "epsilon: " <<  epsilon << '\t';
-    cout << "log likelihood: " << logL << endl;
+    cerr << scientific;
+    cerr << "# pi: " <<  pi << '\t';
+    cerr << "epsilon: " <<  epsilon << '\t';
+    cerr << "log likelihood: " << logL << endl;
 
-    vector<pair<double, double>> likelihoods (profiles.size());
-    transform(profiles.begin(), profiles.end(), likelihoods.begin(),
-	      [nd, epsilon](const pair<Profile, int>& entry) {
-		  const Profile& profile = entry.first;
-		  double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
-		  double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
-		  return make_pair(l1, l2);
-	      });
-
+    vector<pair<double, double>> likelihoods {};
+    for (const Profile& profile : profiles) {
+        double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
+        double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
+        likelihoods.emplace_back(l1, l2);
+    }
     return likelihoods;
 }
