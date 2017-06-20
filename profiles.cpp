@@ -9,7 +9,7 @@ using namespace std;
 Profile operator+(const Profile& lhs, const Profile& rhs) {
     Profile result {lhs};
     for(int i = 0; i < 5; ++i) {
-        result[i] += rhs[i]; 
+        result[i] += rhs[i];
     }
     return result;
 }
@@ -17,7 +17,7 @@ Profile operator+(const Profile& lhs, const Profile& rhs) {
 Profile operator*(const Profile& lhs, const int mult) {
     Profile result {lhs};
     for(int i = 0; i < 5; ++i) {
-        result[i] *= mult; 
+        result[i] *= mult;
     }
     return result;
 }
@@ -26,17 +26,17 @@ Profile parseRead(const string read, char reference) {
     Profile p {0, 0, 0, 0, 0};
     for(auto i = read.begin(); i != read.end(); ++i) {
         switch (*i) {
-            case 'a': 
-            case 'A': 
+            case 'a':
+            case 'A':
                 ++p[A]; break;
-            case 'c': 
-            case 'C': 
+            case 'c':
+            case 'C':
                 ++p[C]; break;
-            case 'g': 
-            case 'G': 
+            case 'g':
+            case 'G':
                 ++p[G]; break;
-            case 't': 
-            case 'T': 
+            case 't':
+            case 'T':
                 ++p[T]; break;
             case '^':
                 // skip next char
@@ -81,5 +81,5 @@ Profile parseRead(const string read, char reference) {
 }
 
 ostream& std::operator<<(ostream& os, const Profile& p) {
-    return os << "[" << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << "](" << p[4] << ")";
+    return os << "[" << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << "]";
 }

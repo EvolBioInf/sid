@@ -33,7 +33,7 @@ Simplex2DResult Simplex2D::run(double (*f)(const gsl_vector*, void*), void* para
         status = gsl_multimin_test_size(size, 1e-5);
 
         if (status == GSL_SUCCESS) {
-            std::cerr << "Simplex converged in " << i << " iterations." << std::endl;
+            std::cerr << "# Simplex converged in " << i << " iterations." << std::endl;
         }
     } while (status == GSL_CONTINUE && i < 1000);
     if (status == GSL_CONTINUE) {
