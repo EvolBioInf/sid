@@ -113,7 +113,10 @@ void processFile(FILE* input) {
     cerr << "# pos\tprofile\t\tclass\tp_ho\t\tp_het\t\tl_ho\t\tl_het\t\trl_ho\t\trl_het" << endl;
     cout << scientific;
     cout.precision(2);
-    for (auto& [pos, profile] : positions) {
+    for (const pair<int, Profile>&  pos_profile : positions) {
+        const int& pos = pos_profile.first;
+        const Profile& profile = pos_profile.second;
+
         int i = index_of[profile];
         cout << pos << '\t' << profile;
         if (relative_likelihoods[i].first < 1.0) {
@@ -147,8 +150,8 @@ void printHelp(char* program_name) {
         {"-c CORRECTION", "correction for multiple testing, one of 'bonf' (Bonferroni), 'bh' (Benjamini-Hochberg), 'none'"}
         // {"-o FILE", {"print output to FILE"}
     };
-    for (const auto& [option, description] : options) {
-        cout << '\t' << option << "\t\t\t" << description << endl;
+    for (const auto& option_desc : options) {
+        cout << '\t' << option_desc.first << "\t\t\t" << option_desc.second << endl;
     }
 }
 
