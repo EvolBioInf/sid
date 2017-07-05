@@ -22,7 +22,10 @@ using namespace std;
 const int NAME_BUFFER_SIZE = 256;
 const int READ_BUFFER_SIZE = 8000;
 
+enum class Correction {Bonferroni, BH, None};
+
 struct arguments {
+    Correction correction {Correction::Bonferroni};
     double p_value_threshold {0.05};
 } args {};
 
@@ -80,24 +83,58 @@ void processFile(FILE* input) {
     }
 
     vector<pair<double, double>> profile_likelihoods = computeLikelihoods(profiles, counts);
-    vector<double> p_values = likelihoodRatioTest(profile_likelihoods);
-    vector<double> p_values_bonf = adjustBonferroni(p_values, positions.size());
-    vector<double> p_values_bh = adjustBenjaminiHochberg(p_values);
 
-    vector<size_t> sorted = descending_sorted_indices(p_values);
+    vector<double> p_het (profile_likelihoods.size());
+    transform(profile_likelihoods.begin(), profile_likelihoods.end(), p_het.begin(),
+              [](pair<double, double> ls) {
+                  return likelihoodRatioTest(ls.first, ls.second);
+              });
 
-    cout << "# pos\tprofile\t\tl_ho\t\tl_het\t\tp\t\tp_bonf\t\tp_bh" << endl;
+    vector<double> p_hom (profile_likelihoods.size());
+    transform(profile_likelihoods.begin(), profile_likelihoods.end(), p_hom.begin(),
+              [](pair<double, double> ls) {
+                  return likelihoodRatioTest(ls.second, ls.first);
+              });
+    vector<double> p_het_adj;
+    vector<double> p_hom_adj;
+    if (args.correction == Correction::Bonferroni) {
+        p_het_adj = adjustBonferroni(p_het, positions.size());
+        p_hom_adj = adjustBonferroni(p_hom, positions.size());
+    } else if (args.correction == Correction::BH) {
+        p_het_adj = adjustBenjaminiHochberg(p_het);
+        p_hom_adj = adjustBenjaminiHochberg(p_hom);
+    } else {
+        p_het_adj = p_het;
+        p_hom_adj = p_hom;
+    }
+
+    vector<pair<double, double>> relative_likelihoods = relativeLikelihoods(profile_likelihoods);
+
+    cerr << "# pos\tprofile\t\tclass\tp_ho\t\tp_het\t\tl_ho\t\tl_het\t\trl_ho\t\trl_het" << endl;
     cout << scientific;
     cout.precision(2);
     for (auto& [pos, profile] : positions) {
-        if (p_values_bh[index_of[profile]] <= args.p_value_threshold || isnan(p_values[index_of[profile]])) {
-            cout << pos << '\t' << profile;
-            cout << '\t' << profile_likelihoods[index_of[profile]].first << '\t' << profile_likelihoods[index_of[profile]].second;
-            cout << '\t' << p_values[index_of[profile]];
-            cout << '\t' << p_values_bonf[index_of[profile]];
-            cout << '\t' << p_values_bh[index_of[profile]];
-            cout << endl;
+        int i = index_of[profile];
+        cout << pos << '\t' << profile;
+        if (relative_likelihoods[i].first < 1.0) {
+            cout << '\t' << "het";
+        } else if(relative_likelihoods[i].second < 1.0) {
+            cout << '\t' << "hom";
+        } else {
+            cout << '\t' << "inc";
         }
+//        if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
+//            cout << '\t' << "het";
+//        } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
+//            cout << '\t' << "hom";
+//        } else {
+//            cout << '\t' << "inc";
+//        }
+        cout << '\t' << p_hom[i];
+        cout << '\t' << p_het[i];
+        cout << '\t' << profile_likelihoods[i].first << '\t' << profile_likelihoods[i].second;
+        cout << '\t' << relative_likelihoods[i].first << '\t' << relative_likelihoods[i].second;
+        cout << endl;
     }
 }
 
@@ -107,6 +144,7 @@ void printHelp(char* program_name) {
     vector<pair<string, string>> options = {
         {"-h", "print this help message and exit"},
         {"-p NUM", "p value threshold"},
+        {"-c CORRECTION", "correction for multiple testing, one of 'bonf' (Bonferroni), 'bh' (Benjamini-Hochberg), 'none'"}
         // {"-o FILE", {"print output to FILE"}
     };
     for (const auto& [option, description] : options) {
@@ -115,12 +153,23 @@ void printHelp(char* program_name) {
 }
 
 int main(int argc, char** argv) {
-    string optstring = "hp:";
+    string optstring = "hp:c:";
     for (char opt = getopt(argc, argv, optstring.c_str()); opt != -1; opt = getopt(argc, argv, optstring.c_str())) {
         switch (opt) {
         case 'h':
             printHelp(argv[0]);
             exit(EXIT_SUCCESS);
+            break;
+        case 'c':
+            if (string(optarg) ==  "bonf") {
+                args.correction = Correction::Bonferroni;
+            } else if (string(optarg) == "bh") {
+                args.correction = Correction::BH;
+            } else if (string(optarg) == "none") {
+                args.correction = Correction::None;
+            } else{
+                cerr << "Warning: unknown correction " << optarg << ". Using default." << endl;
+            }
             break;
         case 'p':
             double p_value = atof(optarg);

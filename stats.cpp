@@ -6,12 +6,35 @@
 
 using namespace std;
 
+double inline aic(double likelihood, double num_params) {
+    return 2 * num_params - 2 * log(likelihood);
+}
+
+vector<pair<double, double>> relativeLikelihoods(const vector<pair<double, double>>& likelihoods) {
+    vector<pair<double, double>> relative_likelihoods (likelihoods.size());
+    transform(likelihoods.begin(), likelihoods.end(), relative_likelihoods.begin(),
+            [](pair<double, double> ls) -> pair<double, double> {
+                double firstAIC = aic(ls.first, 2);
+                double secondAIC = aic(ls.second, 2);
+                if (firstAIC < secondAIC) {
+                    return make_pair(1.0, exp((firstAIC - secondAIC) / 2.0));
+                } else {
+                    return make_pair(exp((secondAIC - firstAIC) / 2.0), 1.0);
+                }
+            });
+    return  relative_likelihoods;
+}
+
+double likelihoodRatioTest(double l_H0, double l_H1) {
+    double chisq = 2 * (log(l_H1) - log(l_H0));
+    return gsl_cdf_chisq_Q(chisq, 1);
+}
+
 vector<double> likelihoodRatioTest(const vector<pair<double, double>>& likelihoods) {
     vector<double> p_values (likelihoods.size());
     transform(likelihoods.begin(), likelihoods.end(), p_values.begin(),
-              [](pair<double, double> l) {
-                  double chisq = 2 * (log(l.second) - log(l.first));
-                  return gsl_cdf_chisq_Q(chisq, 1);
+              [](pair<double, double> l) -> double {
+                  return likelihoodRatioTest(l.first, l.second);
               });
     return p_values;
 }
@@ -49,3 +72,4 @@ vector<double> adjustBenjaminiHochberg(const vector<double>& p_values) {
                [](double d) {return d > 1;}, 1.0);
     return adjusted_p_values;
 }
+
