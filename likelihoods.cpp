@@ -36,7 +36,7 @@ struct MemoizedLogGamma {
     };
 } lngamma {};
 
-double inline profileLikelihoodHomozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
+double profileLikelihoodHomozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
     double l = 0.0;
 
     for (int i = 0; i < 4; ++i) {
@@ -48,7 +48,7 @@ double inline profileLikelihoodHomozygous(const Profile& p, const array<double, 
     return l;
 }
 
-double inline profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
+double profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
     double l = 0.0;
     for (int i = 0; i < 4; ++i) {
         for (int j = i+1; j < 4; ++j) {
@@ -116,7 +116,6 @@ array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profi
     }
 }
 
-// return likelihoods in map iterator order
 vector<pair<double, double>> computeLikelihoods(const vector<Profile>& profiles, const vector<int>& counts) {
     array<double, 4> nd = computeNucleotideDistribution(profiles, counts);
     struct LikelihoodParams params {profiles, counts, nd};
