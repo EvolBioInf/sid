@@ -27,6 +27,7 @@ enum class Correction {Bonferroni, BH, None};
 struct arguments {
     Correction correction {Correction::Bonferroni};
     double p_value_threshold {0.05};
+    string selection = "rel";
 } args {};
 
 void processFile(FILE* input) {
@@ -119,20 +120,23 @@ void processFile(FILE* input) {
 
         int i = index_of[profile];
         cout << pos << '\t' << profile;
-        if (relative_likelihoods[i].first < 1.0) {
-            cout << '\t' << "het";
-        } else if(relative_likelihoods[i].second < 1.0) {
-            cout << '\t' << "hom";
-        } else {
-            cout << '\t' << "inc";
-        }
-//        if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
-//            cout << '\t' << "het";
-//        } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
-//            cout << '\t' << "hom";
-//        } else {
-//            cout << '\t' << "inc";
-//        }
+	if (args.selection == "rel") {
+	    if (relative_likelihoods[i].first < 1.0) {
+		cout << '\t' << "het";
+	    } else if(relative_likelihoods[i].second < 1.0) {
+		cout << '\t' << "hom";
+	    } else {
+		cout << '\t' << "inc";
+	    }
+	} else if (args.selection == "ratio") {
+	    if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
+		cout << '\t' << "het";
+	    } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
+		cout << '\t' << "hom";
+	    } else {
+		cout << '\t' << "inc";
+	    }
+	}
         cout << '\t' << p_hom[i];
         cout << '\t' << p_het[i];
         cout << '\t' << profile_likelihoods[i].first << '\t' << profile_likelihoods[i].second;
@@ -141,41 +145,69 @@ void processFile(FILE* input) {
     }
 }
 
-void printHelp(char* program_name) {
+void printHelp(const char* program_name, const vector<struct option>& options, const vector<string>& descriptions) {
     cout << "Usage: " << program_name << " [options] [input files]" << endl;
     cout << "Options:" << endl;
-    vector<pair<string, string>> options = {
-        {"-h", "print this help message and exit"},
-        {"-p NUM", "p value threshold"},
-        {"-c CORRECTION", "correction for multiple testing, one of 'bonf' (Bonferroni), 'bh' (Benjamini-Hochberg), 'none'"}
-        // {"-o FILE", {"print output to FILE"}
-    };
-    for (const auto& option_desc : options) {
-        cout << '\t' << option_desc.first << "\t\t\t" << option_desc.second << endl;
+    for (int i = 0; i < options.size() && i < descriptions.size(); ++i) {
+	cout << '\t';
+	cout << '-' << (char) options[i].val;
+	cout << ", --" << options[i].name;
+	cout << "\t" << descriptions[i] << endl;
     }
 }
 
 int main(int argc, char** argv) {
-    string optstring = "hp:c:";
-    for (char opt = getopt(argc, argv, optstring.c_str()); opt != -1; opt = getopt(argc, argv, optstring.c_str())) {
+    vector<struct option> options;
+    vector<string> descriptions;
+
+    options.push_back({"help", no_argument, nullptr, 'h'});
+    descriptions.push_back("Print this help message and exit");
+
+    options.push_back({"correction", required_argument, nullptr, 'c'});
+    descriptions.push_back("Correction for multiple testing, one of 'bonf' (Bonferroni), 'bh' (Benjamini-Hochberg), or 'none'");
+
+    options.push_back({"significance", required_argument, nullptr, 'p'});
+    descriptions.push_back("Significance level to use for likelihood ratio testing");
+
+    options.push_back({"selection", required_argument, nullptr, 's'});
+    descriptions.push_back("Model selection procedure, one of 'rel' (relative likelihood), 'ratio' (likelihood ratio test)");
+
+    // end marker for getopt_long
+    options.push_back({0,0,0,0});
+
+    string optstring;
+    for (struct option opt : options) {
+	optstring += opt.val;
+	// use the fact that no_argument = 0, required_argument = 1, optional_argument = 2
+	for (int i = 0; i < opt.has_arg; ++i) {
+	    optstring += ':';
+	}
+    }
+
+    int optindex = -1;
+    char opt = 0;
+
+    double p_value = -1.0;
+    while ((opt = getopt_long(argc, argv, optstring.c_str(), options.data(), &optindex) != -1)) {
+	string value = optarg == nullptr ? "" : string(optarg);
         switch (opt) {
         case 'h':
-            printHelp(argv[0]);
+	    printHelp(argv[0], options, descriptions);
             exit(EXIT_SUCCESS);
             break;
         case 'c':
-            if (string(optarg) ==  "bonf") {
+            if (value ==  "bonf") {
                 args.correction = Correction::Bonferroni;
-            } else if (string(optarg) == "bh") {
+            } else if (value == "bh") {
                 args.correction = Correction::BH;
-            } else if (string(optarg) == "none") {
+            } else if (value == "none") {
                 args.correction = Correction::None;
             } else{
                 cerr << "Warning: unknown correction " << optarg << ". Using default." << endl;
             }
             break;
         case 'p':
-            double p_value = atof(optarg);
+            p_value = atof(optarg);
             if (p_value <= 0.0) {
                 cerr << "Invalid p value threshold or parse error: " << optarg << endl;
                 exit(EXIT_FAILURE);
@@ -183,6 +215,12 @@ int main(int argc, char** argv) {
                 args.p_value_threshold = p_value;
             }
             break;
+	case 's':
+	    if (value != "rel" && value != "ratio") {
+		cerr << "Unknown model selection procedure: " << value << endl;
+		exit(EXIT_FAILURE);
+	    }
+	    args.selection = value;
         }
     }
     if (optind < argc) {
