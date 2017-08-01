@@ -120,23 +120,23 @@ void processFile(FILE* input) {
 
         int i = index_of[profile];
         cout << pos << '\t' << profile;
-	if (args.selection == "rel") {
-	    if (relative_likelihoods[i].first < 1.0) {
-		cout << '\t' << "het";
-	    } else if(relative_likelihoods[i].second < 1.0) {
-		cout << '\t' << "hom";
-	    } else {
-		cout << '\t' << "inc";
-	    }
-	} else if (args.selection == "ratio") {
-	    if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
-		cout << '\t' << "het";
-	    } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
-		cout << '\t' << "hom";
-	    } else {
-		cout << '\t' << "inc";
-	    }
-	}
+    if (args.selection == "rel") {
+        if (relative_likelihoods[i].first < 1.0) {
+        cout << '\t' << "het";
+        } else if(relative_likelihoods[i].second < 1.0) {
+        cout << '\t' << "hom";
+        } else {
+        cout << '\t' << "inc";
+        }
+    } else if (args.selection == "ratio") {
+        if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
+        cout << '\t' << "het";
+        } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
+        cout << '\t' << "hom";
+        } else {
+        cout << '\t' << "inc";
+        }
+    }
         cout << '\t' << p_hom[i];
         cout << '\t' << p_het[i];
         cout << '\t' << profile_likelihoods[i].first << '\t' << profile_likelihoods[i].second;
@@ -149,10 +149,10 @@ void printHelp(const char* program_name, const vector<struct option>& options, c
     cout << "Usage: " << program_name << " [options] [input files]" << endl;
     cout << "Options:" << endl;
     for (int i = 0; i < options.size() && i < descriptions.size(); ++i) {
-	cout << '\t';
-	cout << '-' << (char) options[i].val;
-	cout << ", --" << options[i].name;
-	cout << "\t" << descriptions[i] << endl;
+        cout << '\t';
+        cout << '-' << (char) options[i].val;
+        cout << ", --" << options[i].name;
+        cout << "\t" << descriptions[i] << endl;
     }
 }
 
@@ -177,22 +177,22 @@ int main(int argc, char** argv) {
 
     string optstring;
     for (struct option opt : options) {
-	optstring += opt.val;
-	// use the fact that no_argument = 0, required_argument = 1, optional_argument = 2
-	for (int i = 0; i < opt.has_arg; ++i) {
-	    optstring += ':';
-	}
+        optstring += opt.val;
+        // use the fact that no_argument = 0, required_argument = 1, optional_argument = 2
+        for (int i = 0; i < opt.has_arg; ++i) {
+            optstring += ':';
+        }
     }
 
     int optindex = -1;
     char opt = 0;
 
     double p_value = -1.0;
-    while ((opt = getopt_long(argc, argv, optstring.c_str(), options.data(), &optindex) != -1)) {
-	string value = optarg == nullptr ? "" : string(optarg);
+    while ((opt = getopt_long(argc, argv, optstring.c_str(), options.data(), &optindex)) != -1) {
+        string value = optarg == nullptr ? "" : string(optarg);
         switch (opt) {
         case 'h':
-	    printHelp(argv[0], options, descriptions);
+        printHelp(argv[0], options, descriptions);
             exit(EXIT_SUCCESS);
             break;
         case 'c':
@@ -215,12 +215,14 @@ int main(int argc, char** argv) {
                 args.p_value_threshold = p_value;
             }
             break;
-	case 's':
-	    if (value != "rel" && value != "ratio") {
-		cerr << "Unknown model selection procedure: " << value << endl;
-		exit(EXIT_FAILURE);
-	    }
-	    args.selection = value;
+        case 's':
+            if (value != "rel" && value != "ratio") {
+                cerr << "Unknown model selection procedure: " << value << endl;
+                exit(EXIT_FAILURE);
+            }
+            args.selection = value;
+        default:
+            cerr << "Unknown option character: " << opt << " (" << (int)opt << ")" << endl;
         }
     }
     if (optind < argc) {
