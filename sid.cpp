@@ -111,7 +111,16 @@ void processFile(FILE* input) {
 
     vector<pair<double, double>> relative_likelihoods = relativeLikelihoods(profile_likelihoods);
 
-    cerr << "# pos\tprofile\t\tclass\tp_ho\t\tp_het\t\tl_ho\t\tl_het\t\trl_ho\t\trl_het" << endl;
+    string sep = ",";
+    vector<string> headers {"# pos", "profile", "class", "p_ho", "p_het", "l_ho", "l_het", "rl_ho", "rl_het"};
+    for (string header : headers) {
+       if (header != headers[0]) {
+            cout << sep;
+       }
+       cout << header;
+    }
+    cout << endl;
+
     cout << scientific;
     cout.precision(2);
     for (const pair<int, Profile>&  pos_profile : positions) {
@@ -119,28 +128,30 @@ void processFile(FILE* input) {
         const Profile& profile = pos_profile.second;
 
         int i = index_of[profile];
-        cout << pos << '\t' << profile;
-    if (args.selection == "rel") {
-        if (relative_likelihoods[i].first < 1.0) {
-        cout << '\t' << "het";
-        } else if(relative_likelihoods[i].second < 1.0) {
-        cout << '\t' << "hom";
-        } else {
-        cout << '\t' << "inc";
+        cout << pos << sep << profile;
+
+        cout << sep;
+        if (args.selection == "rel") {
+            if (relative_likelihoods[i].first < 1.0) {
+                cout << "het";
+            } else if(relative_likelihoods[i].second < 1.0) {
+                cout << "hom";
+            } else {
+                cout << "inc";
+            }
+        } else if (args.selection == "ratio") {
+            if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
+                cout << "het";
+            } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
+                cout << "hom";
+            } else {
+                cout << "inc";
+            }
         }
-    } else if (args.selection == "ratio") {
-        if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
-        cout << '\t' << "het";
-        } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
-        cout << '\t' << "hom";
-        } else {
-        cout << '\t' << "inc";
-        }
-    }
-        cout << '\t' << p_hom[i];
-        cout << '\t' << p_het[i];
-        cout << '\t' << profile_likelihoods[i].first << '\t' << profile_likelihoods[i].second;
-        cout << '\t' << relative_likelihoods[i].first << '\t' << relative_likelihoods[i].second;
+        cout << sep << p_hom[i];
+        cout << sep << p_het[i];
+        cout << sep << profile_likelihoods[i].first << sep << profile_likelihoods[i].second;
+        cout << sep << relative_likelihoods[i].first << sep << relative_likelihoods[i].second;
         cout << endl;
     }
 }

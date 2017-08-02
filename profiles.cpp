@@ -81,5 +81,5 @@ Profile parseRead(const string read, char reference) {
 }
 
 ostream& std::operator<<(ostream& os, const Profile& p) {
-    return os << p[0] << "," << p[1] << "," << p[2] << "," << p[3];
+    return os << p[0] << "." << p[1] << "." << p[2] << "." << p[3];
 }
