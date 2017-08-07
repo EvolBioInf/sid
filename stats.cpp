@@ -26,7 +26,7 @@ vector<pair<double, double>> relativeLikelihoods(const vector<pair<double, doubl
 }
 
 double likelihoodRatioTest(double l_H0, double l_H1) {
-    double chisq = 2 * (log(l_H1) - log(l_H0));
+    double chisq = -2 * (log(l_H0) - log(max(l_H0, l_H1)));
     return gsl_cdf_chisq_Q(chisq, 1);
 }
 

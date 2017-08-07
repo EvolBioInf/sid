@@ -30,6 +30,10 @@ struct arguments {
     string selection = "rel";
 } args {};
 
+double inline aic(double likelihood, double num_params) {
+    return 2 * num_params - 2 * log(likelihood);
+}
+
 void processFile(FILE* input) {
     char name [NAME_BUFFER_SIZE];
     int pos;
@@ -83,63 +87,44 @@ void processFile(FILE* input) {
         index_of.emplace(profiles[i], i);
     }
 
-    vector<pair<double, double>> profile_likelihoods = computeLikelihoods(profiles, counts);
-
-    vector<double> p_het (profile_likelihoods.size());
-    transform(profile_likelihoods.begin(), profile_likelihoods.end(), p_het.begin(),
-              [](pair<double, double> ls) {
-                  return likelihoodRatioTest(ls.first, ls.second);
-              });
-
-    vector<double> p_hom (profile_likelihoods.size());
-    transform(profile_likelihoods.begin(), profile_likelihoods.end(), p_hom.begin(),
-              [](pair<double, double> ls) {
-                  return likelihoodRatioTest(ls.second, ls.first);
-              });
-    vector<double> p_het_adj;
-    vector<double> p_hom_adj;
-    if (args.correction == Correction::Bonferroni) {
-        p_het_adj = adjustBonferroni(p_het, positions.size());
-        p_hom_adj = adjustBonferroni(p_hom, positions.size());
-    } else if (args.correction == Correction::BH) {
-        p_het_adj = adjustBenjaminiHochberg(p_het);
-        p_hom_adj = adjustBenjaminiHochberg(p_hom);
-    } else {
-        p_het_adj = p_het;
-        p_hom_adj = p_hom;
-    }
-
-    vector<pair<double, double>> relative_likelihoods = relativeLikelihoods(profile_likelihoods);
+    GenomeParameters gp = estimateGenomeParameters(profiles, counts);
 
     string sep = ",";
-    vector<string> headers {"# pos", "profile", "class", "p_ho", "p_het", "l_ho", "l_het", "rl_ho", "rl_het"};
-    for (string header : headers) {
-       if (header != headers[0]) {
-            cout << sep;
-       }
-       cout << header;
-    }
-    cout << endl;
-
     cout << scientific;
-    cout.precision(2);
-    for (const pair<int, Profile>&  pos_profile : positions) {
-        const int& pos = pos_profile.first;
-        const Profile& profile = pos_profile.second;
+    cout.precision(4);
+    if (args.selection == "ratio") {
+        // compute p-values
+        vector<double> p_hom;
+        vector<double> p_het;
+        for (int i = 0; i < profiles.size(); ++i) {
+            // p value for heterozygous, H_0: homozygous more likely
+            p_het.push_back(likelihoodRatioTest(gp.hom_likelihoods[i], gp.het_likelihoods[i]));
+            // p value for homozygous, H_0: heterozygous more likely
+            p_hom.push_back(likelihoodRatioTest(gp.het_likelihoods[i], gp.hom_likelihoods[i]));
+        }
 
-        int i = index_of[profile];
-        cout << pos << sep << profile;
+        // adjust p-values
+        vector<double> p_het_adj;
+        vector<double> p_hom_adj;
+        if (args.correction == Correction::Bonferroni) {
+            p_het_adj = adjustBonferroni(p_het, profiles.size());
+            p_hom_adj = adjustBonferroni(p_hom, profiles.size());
+        } else if (args.correction == Correction::BH) {
+            p_het_adj = adjustBenjaminiHochberg(p_het);
+            p_hom_adj = adjustBenjaminiHochberg(p_hom);
+        } else {
+            p_het_adj = p_het;
+            p_hom_adj = p_hom;
+        }
 
-        cout << sep;
-        if (args.selection == "rel") {
-            if (relative_likelihoods[i].first < 1.0) {
-                cout << "het";
-            } else if(relative_likelihoods[i].second < 1.0) {
-                cout << "hom";
-            } else {
-                cout << "inc";
-            }
-        } else if (args.selection == "ratio") {
+        cout << "# pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
+        for (const pair<int, Profile>&  pos_profile : positions) {
+            const int& pos = pos_profile.first;
+            const Profile& profile = pos_profile.second;
+
+            int i = index_of[profile];
+            cout << pos << sep << profile << sep;
+
             if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
                 cout << "het";
             } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
@@ -147,12 +132,77 @@ void processFile(FILE* input) {
             } else {
                 cout << "inc";
             }
+            cout << sep << p_hom_adj[i] << sep << p_het_adj[i] << endl;
         }
-        cout << sep << p_hom[i];
-        cout << sep << p_het[i];
-        cout << sep << profile_likelihoods[i].first << sep << profile_likelihoods[i].second;
-        cout << sep << relative_likelihoods[i].first << sep << relative_likelihoods[i].second;
-        cout << endl;
+    } else if (args.selection == "rel") {
+        cout << "# pos" + sep + "profile" + sep + "class" + sep + "reL_hom" + sep + "reL_het" << endl;
+        for (const pair<int, Profile>&  pos_profile : positions) {
+            const int& pos = pos_profile.first;
+            const Profile& profile = pos_profile.second;
+
+            int i = index_of[profile];
+
+            double het_aic = aic(gp.het_likelihoods[i], 1);
+            double hom_aic = aic(gp.hom_likelihoods[i], 1);
+            double het_reL = 1;
+            double hom_reL = 1;
+            if (het_aic < hom_aic) {
+                hom_reL = exp((het_aic - hom_aic) / 2.0);
+            } else {
+                het_reL = exp((hom_aic - het_aic) / 2.0);
+            }
+
+            cout << pos << sep << profile << sep;
+            if (hom_reL < 1.0) {
+                cout << "het";
+            } else if(het_reL < 1.0) {
+                cout << "hom";
+            } else {
+                cout << "inc";
+            }
+            cout << sep << hom_reL << sep << het_reL << endl;
+        }
+    } else if (args.selection == "map") {
+        cout << "# pos" + sep + "profile" + sep + "class" + sep + "ap_hom" + sep + "ap_het" << endl;
+        for (const pair<int, Profile>&  pos_profile : positions) {
+            const int& pos = pos_profile.first;
+            const Profile& profile = pos_profile.second;
+
+            int i = index_of[profile];
+
+            double hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
+            double het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
+
+            cout << pos << sep << profile << sep;
+            if (het_ap > hom_ap) {
+                cout << "het";
+            } else {
+                cout << "hom";
+            }
+            cout << sep << hom_ap << sep << het_ap << endl;
+        }
+    } else if (args.selection == "bayes") {
+        cout << "# pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
+        for (const pair<int, Profile>&  pos_profile : positions) {
+            const int& pos = pos_profile.first;
+            const Profile& profile = pos_profile.second;
+
+            int i = index_of[profile];
+
+            double hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
+            double het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
+
+            double p_hom = hom_ap / (hom_ap + het_ap);
+            double p_het = het_ap / (hom_ap + het_ap);
+
+            cout << pos << sep << profile << sep;
+            if (p_het > p_hom) {
+                cout << "het";
+            } else {
+                cout << "hom";
+            }
+            cout << sep << p_hom << sep << p_het << endl;
+        }
     }
 }
 
@@ -227,11 +277,12 @@ int main(int argc, char** argv) {
             }
             break;
         case 's':
-            if (value != "rel" && value != "ratio") {
+            if (value != "rel" && value != "ratio" && value != "bayes" && value != "map") {
                 cerr << "Unknown model selection procedure: " << value << endl;
                 exit(EXIT_FAILURE);
             }
             args.selection = value;
+            break;
         default:
             cerr << "Unknown option character: " << opt << " (" << (int)opt << ")" << endl;
         }

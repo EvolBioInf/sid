@@ -116,9 +116,9 @@ array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profi
     }
 }
 
-vector<pair<double, double>> computeLikelihoods(const vector<Profile>& profiles, const vector<int>& counts) {
-    array<double, 4> nd = computeNucleotideDistribution(profiles, counts);
-    struct LikelihoodParams params {profiles, counts, nd};
+GenomeParameters estimateGenomeParameters(const std::vector<Profile>& profiles, const std::vector<int>& nucleotide_counts) {
+    array<double, 4> nd = computeNucleotideDistribution(profiles, nucleotide_counts);
+    struct LikelihoodParams params {profiles, nucleotide_counts, nd};
 
     Simplex2D simplex {2, DEFAULT_PI, DEFAULT_EPSILON, DEFAULT_STEPSIZE};
     Simplex2DResult result = simplex.run(logLikelihood, (void*)&params);
@@ -131,11 +131,14 @@ vector<pair<double, double>> computeLikelihoods(const vector<Profile>& profiles,
     cerr << "epsilon: " <<  epsilon << '\t';
     cerr << "log likelihood: " << logL << endl;
 
-    vector<pair<double, double>> likelihoods {};
+    GenomeParameters gp = GenomeParameters(pi, epsilon);
+    vector<double> likelihoods_hom {};
+    vector<double> likelihoods_het {};
     for (const Profile& profile : profiles) {
         double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
+        gp.hom_likelihoods.emplace_back(l1);
         double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
-        likelihoods.emplace_back(l1, l2);
+        gp.het_likelihoods.emplace_back(l2);
     }
-    return likelihoods;
+    return gp;
 }
