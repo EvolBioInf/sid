@@ -24,4 +24,6 @@ GenomeParameters estimateGenomeParameters(const std::vector<Profile>& profiles, 
 double profileLikelihoodHomozygous(const Profile& p, const std::array<double, 4>& nucleotide_dist, double p_error);
 double profileLikelihoodHeterozygous(const Profile& p, const std::array<double, 4>& nucleotide_dist, double p_error);
 
+double profileLikelihoodHomozygous(const Profile& p, double p_error, int i);
+double profileLikelihoodHeterozygous(const Profile& p, double p_error, int i, int j);
 #endif

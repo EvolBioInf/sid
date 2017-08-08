@@ -36,11 +36,27 @@ struct MemoizedLogGamma {
     };
 } lngamma {};
 
+double profileLikelihoodHomozygous(const Profile& p, double p_error, int i) {
+    double l = pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
+
+    // compute multiomial coefficient with logGamma trick
+    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
+    return l;
+}
+
+double profileLikelihoodHeterozygous(const Profile& p, double p_error, int i, int j) {
+    double l = pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
+
+    // compute multiomial coefficient with logGamma trick
+    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
+    return l;
+}
+
 double profileLikelihoodHomozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
     double l = 0.0;
 
     for (int i = 0; i < 4; ++i) {
-	l += nucleotide_dist[i] * pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
+        l += nucleotide_dist[i] * pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
     }
     // compute multiomial coefficient with logGamma trick
     l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
@@ -52,7 +68,7 @@ double profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& n
     double l = 0.0;
     for (int i = 0; i < 4; ++i) {
         for (int j = i+1; j < 4; ++j) {
-	    l += nucleotide_dist[i] * nucleotide_dist[j] * pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
+            l += nucleotide_dist[i] * nucleotide_dist[j] * pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
 	}
     }
     // compute multiomial coefficient with logGamma trick

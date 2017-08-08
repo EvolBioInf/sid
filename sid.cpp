@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -117,7 +116,7 @@ void processFile(FILE* input) {
             p_hom_adj = p_hom;
         }
 
-        cout << "# pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
         for (const pair<int, Profile>&  pos_profile : positions) {
             const int& pos = pos_profile.first;
             const Profile& profile = pos_profile.second;
@@ -135,7 +134,7 @@ void processFile(FILE* input) {
             cout << sep << p_hom_adj[i] << sep << p_het_adj[i] << endl;
         }
     } else if (args.selection == "rel") {
-        cout << "# pos" + sep + "profile" + sep + "class" + sep + "reL_hom" + sep + "reL_het" << endl;
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "reL_hom" + sep + "reL_het" << endl;
         for (const pair<int, Profile>&  pos_profile : positions) {
             const int& pos = pos_profile.first;
             const Profile& profile = pos_profile.second;
@@ -163,7 +162,7 @@ void processFile(FILE* input) {
             cout << sep << hom_reL << sep << het_reL << endl;
         }
     } else if (args.selection == "map") {
-        cout << "# pos" + sep + "profile" + sep + "class" + sep + "ap_hom" + sep + "ap_het" << endl;
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "ap_hom" + sep + "ap_het" << endl;
         for (const pair<int, Profile>&  pos_profile : positions) {
             const int& pos = pos_profile.first;
             const Profile& profile = pos_profile.second;
@@ -182,7 +181,7 @@ void processFile(FILE* input) {
             cout << sep << hom_ap << sep << het_ap << endl;
         }
     } else if (args.selection == "bayes") {
-        cout << "# pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
         for (const pair<int, Profile>&  pos_profile : positions) {
             const int& pos = pos_profile.first;
             const Profile& profile = pos_profile.second;
@@ -202,6 +201,59 @@ void processFile(FILE* input) {
                 cout << "hom";
             }
             cout << sep << p_hom << sep << p_het << endl;
+        }
+    } else if (args.selection == "local") {
+        vector<double> errors;
+        vector<string> genotypes;
+
+        for (const Profile& p : profiles) {
+            double max_likelihood = -1.0;
+            string ml_genotype = "";
+            double ml_error = -1.0;
+            // homozygous
+            // ml_error = n2+n3+n4 / n1+n2+n3+n4
+            for (int i = 0; i < 4; ++i) {
+                double error = (double)(p[COV] - p[i]) / p[COV];
+                double l = profileLikelihoodHomozygous(p, error, i);
+                if (l > max_likelihood) {
+                    max_likelihood = l;
+                    ml_genotype = to_string(i) + to_string(i);
+                    ml_error = error;
+                }
+            }
+            // heterozygous
+            // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
+            for (int i = 0; i < 4; ++i) {
+                for (int j = i+1; j < 4; ++j) {
+                    double error = 1.5 * (double)(p[COV] - p[i] - p[j])/p[COV];
+                    // error per base cannot exceed 1.0
+                    error = min(error, 1.0);
+                    double l = profileLikelihoodHeterozygous(p, error, i, j);
+                    if (l > max_likelihood) {
+                        max_likelihood = l;
+                        ml_genotype = to_string(i) + to_string(j);
+                        ml_error = error;
+                    }
+                }
+            }
+            errors.push_back(ml_error);
+            genotypes.push_back(ml_genotype);
+        }
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err" << endl;
+        for (const pair<int, Profile>& pos_profile : positions) {
+            const int& pos = pos_profile.first;
+            const Profile& profile = pos_profile.second;
+
+            int i = index_of[profile];
+
+            cout << pos << sep << profile << sep;
+            if (genotypes[i][0] == genotypes[i][1]) {
+                cout << "hom";
+            } else {
+                cout << "het";
+            }
+            cout << sep << genotypes[i] << sep << errors[i];
+            cout << endl;
         }
     }
 }
@@ -277,7 +329,7 @@ int main(int argc, char** argv) {
             }
             break;
         case 's':
-            if (value != "rel" && value != "ratio" && value != "bayes" && value != "map") {
+            if (value != "rel" && value != "ratio" && value != "bayes" && value != "map" && value != "local") {
                 cerr << "Unknown model selection procedure: " << value << endl;
                 exit(EXIT_FAILURE);
             }
