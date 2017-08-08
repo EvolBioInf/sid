@@ -29,10 +29,6 @@ struct arguments {
     string selection = "rel";
 } args {};
 
-double inline aic(double likelihood, double num_params) {
-    return 2 * num_params - 2 * log(likelihood);
-}
-
 void processFile(FILE* input) {
     char name [NAME_BUFFER_SIZE];
     int pos;
@@ -141,8 +137,14 @@ void processFile(FILE* input) {
 
             int i = index_of[profile];
 
-            double het_aic = aic(gp.het_likelihoods[i], 1);
-            double hom_aic = aic(gp.hom_likelihoods[i], 1);
+            // compute Akaike Information Criterion with 1 degree of freedom
+            auto aic = [] (double likelihood) {
+                return 2 * 1 - 2 * log(likelihood);
+            };
+            double het_aic = aic(gp.het_likelihoods[i]);
+            double hom_aic = aic(gp.hom_likelihoods[i]);
+
+            // compute relative likelihoods
             double het_reL = 1;
             double hom_reL = 1;
             if (het_aic < hom_aic) {
