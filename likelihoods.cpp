@@ -23,8 +23,8 @@ struct MemoizedLogGamma {
         if (x < 0) {
             return gsl_sf_lngamma(x);
         } else if (x == 0) {
-	    return 0;
-	} else {
+            return 0;
+        } else {
             if ((unsigned)x >= cache.size()) {
                 cache.resize(x+1, -2.0);
             }
@@ -69,7 +69,7 @@ double profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& n
     for (int i = 0; i < 4; ++i) {
         for (int j = i+1; j < 4; ++j) {
             l += nucleotide_dist[i] * nucleotide_dist[j] * pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
-	}
+        }
     }
     // compute multiomial coefficient with logGamma trick
     l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
@@ -86,9 +86,9 @@ double profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& n
 struct LikelihoodParams {
     const vector<Profile>& profiles;
     const vector<int>& counts;
-    array<double, 4> nucleotide_dist;
+    const array<double, 4>& nucleotide_dist;
 
-    LikelihoodParams(const vector<Profile>& ps, const vector<int>& cs, array<double, 4> nd)
+    LikelihoodParams(const vector<Profile>& ps, const vector<int>& cs, const array<double, 4>& nd)
         : profiles{ps}, counts{cs}, nucleotide_dist{nd} {}
 };
 
@@ -99,7 +99,7 @@ double logLikelihood(const gsl_vector* v, void *params_) {
     struct LikelihoodParams* params = (struct LikelihoodParams*)params_;
     const vector<Profile>& profiles = params->profiles;
     const vector<int>& counts = params->counts;
-    array<double, 4>& nd = params->nucleotide_dist;
+    const array<double, 4>& nd = params->nucleotide_dist;
 
     if (pi < 0 || pi > 1 || epsilon < 0 || epsilon > 1) {
         return numeric_limits<double>::max();
