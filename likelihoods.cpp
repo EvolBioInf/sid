@@ -5,8 +5,8 @@
 #include <map>
 #include <numeric>
 
-#include "simplex.hpp"
 #include "likelihoods.hpp"
+#include "optimization.hpp"
 
 using namespace std;
 
@@ -120,10 +120,10 @@ GenomeParameters estimateGenomeParameters(const std::vector<Profile>& profiles, 
     array<double, 4> nd = computeNucleotideDistribution(profiles, nucleotide_counts);
     struct LikelihoodParams params {profiles, nucleotide_counts, nd};
 
-    Simplex2D simplex {2, DEFAULT_PI, DEFAULT_EPSILON, DEFAULT_STEPSIZE};
-    Simplex2DResult result = simplex.run(logLikelihood, (void*)&params);
-    double pi = result.x1;
-    double epsilon = result.x2;
+    FunctionMinimizer<2> mini {{DEFAULT_PI, DEFAULT_EPSILON}, {DEFAULT_STEPSIZE, DEFAULT_STEPSIZE}};
+    FunctionMinimizerResult<2> result = mini.run(logLikelihood, (void*)&params);
+    double pi = result.x[0];
+    double epsilon = result.x[1];
     double logL = result.fval;
 
     cerr << scientific;
