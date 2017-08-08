@@ -6,22 +6,6 @@
 
 using namespace std;
 
-Profile operator+(const Profile& lhs, const Profile& rhs) {
-    Profile result {lhs};
-    for(int i = 0; i < 5; ++i) {
-        result[i] += rhs[i];
-    }
-    return result;
-}
-
-Profile operator*(const Profile& lhs, const int mult) {
-    Profile result {lhs};
-    for(int i = 0; i < 5; ++i) {
-        result[i] *= mult;
-    }
-    return result;
-}
-
 Profile parseRead(const string read, char reference) {
     Profile p {0, 0, 0, 0, 0};
     for(auto i = read.begin(); i != read.end(); ++i) {

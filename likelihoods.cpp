@@ -119,14 +119,19 @@ double logLikelihood(const gsl_vector* v, void *params_) {
 }
 
 array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profiles, const std::vector<int>& counts) {
-    Profile acc {0,0,0,0,0};
+    array<unsigned long int, 5> acc {0,0,0,0,0};
     for (int i = 0; i < profiles.size(); ++i) {
-        acc = acc + profiles[i] * counts[i];
+        for (auto j : {A,C,G,T,COV}) {
+            acc[j] = counts[i] * profiles[i][j];
+        }
     }
 
-    int n = acc[COV];
-    if (n != 0) {
-        return {(double)acc[A]/n, (double)acc[C]/n, (double)acc[G]/n, (double)acc[T]/n};
+    if (acc[COV] != 0) {
+        return {
+            (double)acc[A] / acc[COV],
+            (double)acc[C] / acc[COV],
+            (double)acc[G] / acc[COV],
+            (double)acc[T] / acc[COV]};
     } else {
         return {0.25,0.25,0.25,0.25};
     }
