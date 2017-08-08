@@ -18,6 +18,6 @@ namespace std {
     std::ostream& operator<<(std::ostream& os, const Profile& p);
 }
 
-Profile parseRead(const std::string read, char reference = 'n');
+Profile parseRead(const std::string& read, char reference = 'n');
 
 #endif
