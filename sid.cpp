@@ -204,10 +204,12 @@ void processFile(FILE* input) {
             }
             cout << sep << p_hom << sep << p_het << endl;
         }
-    } else if (args.selection == "local") {
-        vector<double> errors;
-        vector<string> genotypes;
+    } else if (args.selection == "localmax") {
+        const double ERROR_THRESHOLD = 0.1;
+        vector<double> errors (profiles.size());
+        vector<string> genotypes (profiles.size());
 
+        int i = 0;
         for (const Profile& p : profiles) {
             double max_likelihood = -1.0;
             string ml_genotype = "";
@@ -216,6 +218,7 @@ void processFile(FILE* input) {
             // ml_error = n2+n3+n4 / n1+n2+n3+n4
             for (int i = 0; i < 4; ++i) {
                 double error = (double)(p[COV] - p[i]) / p[COV];
+                error = min(ERROR_THRESHOLD, error);
                 double l = profileLikelihoodHomozygous(p, error, i);
                 if (l > max_likelihood) {
                     max_likelihood = l;
@@ -229,7 +232,7 @@ void processFile(FILE* input) {
                 for (int j = i+1; j < 4; ++j) {
                     double error = 1.5 * (double)(p[COV] - p[i] - p[j])/p[COV];
                     // error per base cannot exceed 1.0
-                    error = min(error, 1.0);
+                    error = min(ERROR_THRESHOLD, error);
                     double l = profileLikelihoodHeterozygous(p, error, i, j);
                     if (l > max_likelihood) {
                         max_likelihood = l;
@@ -238,8 +241,9 @@ void processFile(FILE* input) {
                     }
                 }
             }
-            errors.push_back(ml_error);
-            genotypes.push_back(ml_genotype);
+            errors[i] = ml_error;
+            genotypes[i] = ml_genotype;
+            ++i;
         }
         cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err" << endl;
         for (const pair<int, Profile>& pos_profile : positions) {
@@ -257,6 +261,88 @@ void processFile(FILE* input) {
             cout << sep << genotypes[i] << sep << errors[i];
             cout << endl;
         }
+    } else if (args.selection == "local") {
+        const double ERROR_THRESHOLD = 0.1;
+        vector<double> errors (profiles.size());
+        vector<string> genotypes (profiles.size());
+        vector<double> pvalues (profiles.size());
+
+        int ii = 0;
+        for (const Profile& p : profiles) {
+            array<int, 4> sorted_bases;
+            int largest = -1;
+            int snd_largest = -1;
+            int largest_i = -1;
+            int snd_largest_i = -1;
+            for (int i = 0; i < 4; ++i) {
+                if (p[i] > largest) {
+                    snd_largest = largest;
+                    snd_largest_i = largest_i;
+                    largest = p[i];
+                    largest_i = i;
+                } else if (p[i] > snd_largest) {
+                    snd_largest = p[i];
+                    snd_largest_i = i;
+                }
+            }
+
+            // homozygous
+            // ml_error = n2+n3+n4 / n1+n2+n3+n4
+            double error1 = (double)(p[COV] - p[largest_i]) / p[COV];
+            error1 = min(ERROR_THRESHOLD, error1);
+            double l1 = profileLikelihoodHomozygous(p, error1, largest_i);
+
+            // heterozygous
+            // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
+            double error2 = 1.5 * (double)(p[COV] - p[largest_i] - p[snd_largest_i])/p[COV];
+            error2 = min(ERROR_THRESHOLD, error2);
+            double l2 = profileLikelihoodHeterozygous(p, error2, largest_i, snd_largest_i);
+
+            double p1 = likelihoodRatioTest(l2, l1);
+            double p2 = likelihoodRatioTest(l1, l2);
+
+            if (p1 < args.p_value_threshold && p2 > args.p_value_threshold) {
+                errors[ii] = error1;
+                genotypes[ii] = to_string(largest_i) + to_string(largest_i);
+                pvalues[ii] = likelihoodRatioTest(l2, l1);
+            } else if (p1 > args.p_value_threshold && p2 < args.p_value_threshold) {
+                errors[ii] = error2;
+                genotypes[ii] = to_string(largest_i) + to_string(snd_largest_i);
+                pvalues[ii] = likelihoodRatioTest(l1, l2);
+            } else {
+                if (l1 > l2) {
+                    errors[ii] = error1;
+                    genotypes[ii] = to_string(largest_i) + to_string(largest_i);
+                    pvalues[ii] = p1;
+                } else {
+                    errors[ii] = error2;
+                    genotypes[ii] = to_string(largest_i) + to_string(snd_largest_i);
+                    pvalues[ii] = p2;
+                }
+            }
+            ++ii;
+        }
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err" + sep + "p" << endl;
+        for (const pair<int, Profile>& pos_profile : positions) {
+            const int& pos = pos_profile.first;
+            const Profile& profile = pos_profile.second;
+
+            int i = index_of[profile];
+
+            cout << pos << sep << profile << sep;
+            if (pvalues[i] > args.p_value_threshold) {
+                cout << "inc";
+            } else if (genotypes[i][0] == genotypes[i][1]) {
+                cout << "hom";
+            } else {
+                cout << "het";
+            }
+            cout << sep << genotypes[i] << sep << errors[i] << sep << pvalues[i];
+            cout << endl;
+        }
+    } else {
+        cerr << "Unknown model selection procedure: " << args.selection << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -331,10 +417,10 @@ int main(int argc, char** argv) {
             }
             break;
         case 's':
-            if (value != "rel" && value != "ratio" && value != "bayes" && value != "map" && value != "local") {
-                cerr << "Unknown model selection procedure: " << value << endl;
-                exit(EXIT_FAILURE);
-            }
+            /* if (value != "rel" && value != "ratio" && value != "bayes" && value != "map" && value != "local") { */
+            /*     cerr << "Unknown model selection procedure: " << value << endl; */
+            /*     exit(EXIT_FAILURE); */
+            /* } */
             args.selection = value;
             break;
         default:
