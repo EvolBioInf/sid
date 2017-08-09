@@ -122,7 +122,7 @@ array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profi
     array<unsigned long int, 5> acc {0,0,0,0,0};
     for (int i = 0; i < profiles.size(); ++i) {
         for (auto j : {A,C,G,T,COV}) {
-            acc[j] = counts[i] * profiles[i][j];
+            acc[j] += counts[i] * profiles[i][j];
         }
     }
 
