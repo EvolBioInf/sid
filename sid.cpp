@@ -18,9 +18,6 @@
 
 using namespace std;
 
-const int NAME_BUFFER_SIZE = 256;
-const int READ_BUFFER_SIZE = 8000;
-
 enum class Correction {Bonferroni, BH, None};
 
 struct arguments {
@@ -30,23 +27,25 @@ struct arguments {
 } args {};
 
 void processFile(FILE* input) {
-    char name [NAME_BUFFER_SIZE];
+    char* name;
     int pos;
     char reference_base;
     int coverage;
-    char read [READ_BUFFER_SIZE];
+    char* read;
 
     vector<pair<int, Profile>> positions;
     vector<Profile> profiles;
     int count = 0;
     while(!feof(input) && !ferror(input)) {
-        int parsed_fields = fscanf(input, "%s %d %c %d %s %*s\n", &name[0], &pos, &reference_base, &coverage, &read[0]);
+        int parsed_fields = fscanf(input, "%ms %d %c %d %ms %*s\n", &name, &pos, &reference_base, &coverage, &read);
         if (ferror(input) || parsed_fields < 5) {
             cerr << "Read error: input must be valid 'samtools mpileup' output." << endl;
             exit(EXIT_FAILURE);
         }
 
         Profile p = parseRead(read, reference_base);
+        free(name);
+        free(read);
         if (p[COV] >= 4) {
             // mapping position -> profile
             positions.emplace_back(pos, p);
