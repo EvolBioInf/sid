@@ -73,7 +73,7 @@ void processFile(FILE* input) {
     auto new_end = unique(profiles.begin(), profiles.end());
     profiles.resize(distance(profiles.begin(), new_end));
 
-    cerr << "# " << positions.size() << " of " << count << " reads with required coverage > 4, ";
+    cerr << "# " << positions.size() << " of " << count << " sites with required coverage > 4, ";
     cerr << counts.size() << " distinct profiles" << endl;
 
     map<Profile, int> index_of {};
