@@ -6,7 +6,7 @@ AM_INIT_AUTOMAKE([foreign subdir-objects -Wall -Werror])
 AC_CONFIG_SRCDIR(sid.cpp)
 
 # check for c++ compiler
-#AC_PROG_CXX([clang g++])
+AC_PROG_CXX([g++ clang++])
 AC_PROG_CXX
 
 # recommended check for GNU scientific library, from https://www.gnu.org/software/gsl/manual/html_node/Autoconf-Macros.html (6.6.2017)
