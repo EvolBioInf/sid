@@ -8,47 +8,45 @@
 
 using namespace std;
 
-TEST_CASE("sequence reads in 'samtools mpileup' format are parsed correctly", "[parseRead]") {
+Profile makeProfile(uint16_t a, uint16_t c, uint16_t g, uint16_t t) {
+    return Profile {a,c,g,t,(uint16_t)(a+c+g+t)};
+}
+
+TEST_CASE("read base column 'samtools mpileup' format is parsed correctly", "[parseReadBases]") {
     SECTION ("simple reads") {
-        Profile aa {2,0,0,0,2};
-        REQUIRE(parseRead("aA") == aa);
+        REQUIRE(parseReadBases("aA", 'n') == makeProfile(2,0,0,0));
 
-        Profile cc {0,2,0,0,2};
-        REQUIRE(parseRead("cC") == cc);
+        REQUIRE(parseReadBases("cC", 'n') == makeProfile(0,2,0,0));
 
-        Profile gg {0,0,2,0,2};
-        REQUIRE(parseRead("gG") == gg);
+        REQUIRE(parseReadBases("gG", 'n') == makeProfile(0,0,2,0));
 
-        Profile tt {0,0,0,2,2};
-        REQUIRE(parseRead("tT") == tt);
+        REQUIRE(parseReadBases("tT", 'n') == makeProfile(0,0,0,2));
     }
     SECTION ("empty read") {
-        Profile p {0,0,0,0,0};
-        REQUIRE(parseRead("") == p);
+        REQUIRE(parseReadBases("", 'n') == makeProfile(0,0,0,0));
     }
     SECTION ("ignore read end") {
-        Profile p {1,0,0,0,1};
-        REQUIRE(parseRead("a$") == p);
+        REQUIRE(parseReadBases("a$", 'n') == makeProfile(1,0,0,0));
     }
     SECTION("skip quality markers") {
         Profile p {1,0,0,0,1};
-        REQUIRE(parseRead("a^a") == p);
-        REQUIRE(parseRead("^aa") == p);
+        REQUIRE(parseReadBases("a^a", 'n') == p);
+        REQUIRE(parseReadBases("^aa", 'n') == p);
     }
     SECTION("skip indels") {
         Profile p {1,0,0,0,1};
-        REQUIRE(parseRead("a+3act") == p);
-        REQUIRE(parseRead("+3acta") == p);
+        REQUIRE(parseReadBases("a+3act", 'n') == p);
+        REQUIRE(parseReadBases("+3acta", 'n') == p);
 
-        REQUIRE(parseRead("a-3act") == p);
-        REQUIRE(parseRead("-3acta") == p);
+        REQUIRE(parseReadBases("a-3act", 'n') == p);
+        REQUIRE(parseReadBases("-3acta", 'n') == p);
     }
     SECTION("correctly handel reference bases") {
         Profile p {1,0,1,0,2};
-        CHECK(parseRead("a.", 'g') == p);
-        CHECK(parseRead(",g", 'a') == p);
-        CHECK(parseRead("ag", 't') == p);
-        CHECK(parseRead("ag", 'n') == p);
-        CHECK(parseRead("ag") == p);
+        CHECK(parseReadBases("a.", 'g') == p);
+        CHECK(parseReadBases(",g", 'a') == p);
+        CHECK(parseReadBases("ag", 't') == p);
+        CHECK(parseReadBases("ag", 'n') == p);
+        CHECK(parseReadBases("ag", 'n') == p);
     }
 }
