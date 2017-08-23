@@ -1,5 +1,5 @@
+#include <cstdlib>
 #include <cstring>
-#include <string>
 #include <iostream>
 
 #include "profiles.hpp"
@@ -26,23 +26,23 @@ bool inline tryIncrementBaseCount(char base, Profile& p) {
     return true;
 }
 
-Profile parseRead(const string& read, char reference) {
+Profile parseRead(const char* read, char reference) {
     Profile p {0, 0, 0, 0, 0};
-    for(auto i = read.begin(); i != read.end(); ++i) {
-        if (!tryIncrementBaseCount(*i, p)) {
-            switch (*i) {
+    for(const char* base = read; *base != '\0'; ++base) {
+        if (!tryIncrementBaseCount(*base, p)) {
+            switch (*base) {
                 case '^':
                     // skip next char
-                    ++i;
+                    ++base;
                     break;
                 case '+':
                 case '-': {
                     // parse following number, which indicates a range of insert/del bases
-                    size_t first_after_number = 0;
-                    int length = stoi(string(i+1, read.end()), &first_after_number);
+                    char* first_after_number;
+                    int length = strtol(base + 1, &first_after_number, 10);
 
                     // skip parsed number + that number of bases after the number
-                    i += first_after_number + length;
+                    base = first_after_number + length - 1;
                     break;
                 }
                 case '.':
