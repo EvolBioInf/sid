@@ -5,10 +5,7 @@
 #include <chrono>
 #include <iostream>
 #include <limits>
-#include <map>
 #include <string>
-#include <tuple>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -29,94 +26,6 @@ struct arguments {
     double p_value_threshold {0.05};
     string selection = "rel";
 } args {};
-
-typedef struct {
-    int pos {-1};
-    char reference_base {'N'};
-    char* read;
-} PileupLine;
-
-PileupLine parsePileupLine(char* line) {
-    PileupLine result;
-    const char* delim = " \t";
-
-    // drop name
-    strtok(line, delim);
-
-    // read position
-    char* pos = strtok(NULL, delim);
-    if (pos == NULL) {
-        return result;
-    }
-    result.pos = atoi(pos);
-
-    // read reference base
-    char* ref = strtok(NULL, delim);
-    if (ref == NULL) {
-        result.pos = -1;
-        return result;
-    }
-    result.reference_base = ref[0];
-
-    // drop coverage
-    strtok(NULL, delim);
-
-    result.read = strtok(NULL, delim);
-    if (result.read == NULL) {
-        result.pos = -1;
-    }
-    return result;
-}
-
-typedef struct {
-    int num_sites {0};
-    vector<int> positions {};
-    vector<Profile> profiles {};
-} PileupData;
-
-PileupData readlinePileup(FILE* input) {
-    PileupData result;
-
-    int pos;
-    char reference_base;
-    int count = 0;
-
-    size_t read_buffer_size = 10000;
-    char* read = (char*)malloc(read_buffer_size*sizeof(char));
-
-    char* line = (char*)malloc(10000*sizeof(char));
-    size_t line_length = 0;
-    ssize_t num_read = -1;
-    while((num_read = getline(&line, &line_length, input)) != -1) {
-        if (line_length > read_buffer_size) {
-            read = (char*)realloc((void*)read, line_length*sizeof(char));
-            read_buffer_size = line_length;
-        }
-
-        PileupLine plpline = parsePileupLine(line);
-        if (plpline.pos < 0) {
-            cerr << "# Read error: input must be valid 'samtools mpileup' output." << endl;
-            exit(EXIT_FAILURE);
-        }
-        Profile p = parseRead(plpline.read, plpline.reference_base);
-
-        if (p[COV] >= 4) {
-            result.positions.push_back(plpline.pos);
-            result.profiles.push_back(p);
-            result.num_sites += 1;
-        }
-        ++count;
-    }
-    free(line);
-    free(read);
-
-    if(result.num_sites == 0) {
-        cerr << "# No profiles found with required minimum coverage of 4!" << endl;
-        exit(EXIT_FAILURE);
-    }
-    cerr << "# " << result.num_sites << " of " << count << " sites with required coverage > 4" << endl;
-    return result;
-}
 
 void callVariants(const PileupData& pileup, const vector<Profile>& profiles, const GenomeParameters& gp) {
     auto t1 = chrono::high_resolution_clock::now();
@@ -409,7 +318,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
 
 void processFile(FILE* input) {
     auto t1 = chrono::high_resolution_clock::now();
-    PileupData pileup = readlinePileup(input);
+    PileupData pileup = readPileup(input);
 
     auto t2 = chrono::high_resolution_clock::now();
     vector<Profile> unique_profiles (pileup.profiles);

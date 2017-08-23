@@ -26,7 +26,7 @@ bool inline tryIncrementBaseCount(char base, Profile& p) {
     return true;
 }
 
-Profile parseRead(const char* read, char reference) {
+Profile parseReadBases(const char* read, char reference) {
     Profile p {0, 0, 0, 0, 0};
     for(const char* base = read; *base != '\0'; ++base) {
         if (!tryIncrementBaseCount(*base, p)) {
@@ -57,6 +57,72 @@ Profile parseRead(const char* read, char reference) {
     }
     p[COV] = p[A] + p[C] + p[G] + p[T];
     return p;
+}
+
+PileupLine parsePileupLine(char* line) {
+    PileupLine result;
+    const char* delim = " \t";
+
+    // drop name
+    strtok(line, delim);
+
+    // read position
+    char* pos = strtok(NULL, delim);
+    if (pos == NULL) {
+        return result;
+    }
+    result.pos = atoi(pos);
+
+    // read reference base
+    char* ref = strtok(NULL, delim);
+    if (ref == NULL) {
+        result.pos = -1;
+        return result;
+    }
+    result.reference_base = ref[0];
+
+    // drop coverage
+    strtok(NULL, delim);
+
+    // parse nucleotide profile
+    char* read_bases = strtok(NULL, delim);
+    if (read_bases == NULL) {
+        result.pos = -1;
+        return result;
+    }
+    result.profile = parseReadBases(read_bases, result.reference_base);
+    return result;
+}
+
+PileupData readPileup(FILE* input) {
+    PileupData result;
+
+    size_t line_length = 10000;
+    char* line = (char*)malloc(line_length*sizeof(char));
+
+    int lines = 0;
+    while(getline(&line, &line_length, input) != -1) {
+        PileupLine plpline = parsePileupLine(line);
+        if (plpline.pos < 0) {
+            cerr << "# Read error: input must be valid 'samtools mpileup' output." << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        if (plpline.profile[COV] >= 4) {
+            result.positions.push_back(plpline.pos);
+            result.profiles.push_back(plpline.profile);
+            result.num_sites += 1;
+        }
+        ++lines;
+    }
+    free(line);
+
+    if(result.num_sites == 0) {
+        cerr << "# No profiles found with required minimum coverage of 4!" << endl;
+        exit(EXIT_FAILURE);
+    }
+    cerr << "# " << result.num_sites << " of " << lines << " sites with required coverage > 4" << endl;
+    return result;
 }
 
 ostream& std::operator<<(ostream& os, const Profile& p) {
