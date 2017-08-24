@@ -41,12 +41,16 @@ TEST_CASE("read base column 'samtools mpileup' format is parsed correctly", "[pa
         REQUIRE(parseReadBases("a-3act", 'n') == p);
         REQUIRE(parseReadBases("-3acta", 'n') == p);
     }
-    SECTION("correctly handel reference bases") {
+    SECTION("correctly handle reference bases") {
         Profile p {1,0,1,0,2};
         CHECK(parseReadBases("a.", 'g') == p);
         CHECK(parseReadBases(",g", 'a') == p);
         CHECK(parseReadBases("ag", 't') == p);
         CHECK(parseReadBases("ag", 'n') == p);
         CHECK(parseReadBases("ag", 'n') == p);
+    }
+    SECTION("handle malformatted input") {
+        REQUIRE(parseReadBases("--a", 'n') == makeProfile(1,0,0,0));
+        REQUIRE(parseReadBases("--3ggga", 'n') == makeProfile(1,0,0,0));
     }
 }

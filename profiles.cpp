@@ -28,21 +28,25 @@ bool inline tryIncrementBaseCount(char base, Profile& p) {
 
 Profile parseReadBases(const char* read, char reference) {
     Profile p {0, 0, 0, 0, 0};
-    for(const char* base = read; *base != '\0'; ++base) {
-        if (!tryIncrementBaseCount(*base, p)) {
-            switch (*base) {
+    for(size_t i = 0; i < strlen(read); ++i) {
+        char base = read[i];
+        if (!tryIncrementBaseCount(base, p)) {
+            switch (base) {
                 case '^':
                     // skip next char
-                    ++base;
+                    ++i;
                     break;
                 case '+':
                 case '-': {
                     // parse following number, which indicates a range of insert/del bases
+                    if (!isdigit(read[i + 1])) {
+                        break;
+                    }
                     char* first_after_number;
-                    int length = strtol(base + 1, &first_after_number, 10);
-
+                    int length = strtol(read + i + 1, &first_after_number, 10);
                     // skip parsed number + that number of bases after the number
-                    base = first_after_number + length - 1;
+                    // (-1 because i is incremented in the surrounding loop)
+                    i = (first_after_number - read) + length - 1;
                     break;
                 }
                 case '.':
