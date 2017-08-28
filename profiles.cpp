@@ -1,3 +1,4 @@
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -28,7 +29,7 @@ bool inline tryIncrementBaseCount(char base, Profile& p) {
 
 Profile parseReadBases(const char* read, char reference) {
     Profile p {0, 0, 0, 0, 0};
-    for(size_t i = 0; i < strlen(read); ++i) {
+    for(unsigned long i = 0; i < strlen(read); ++i) {
         char base = read[i];
         if (!tryIncrementBaseCount(base, p)) {
             switch (base) {
@@ -43,10 +44,15 @@ Profile parseReadBases(const char* read, char reference) {
                         break;
                     }
                     char* first_after_number;
-                    int length = strtol(read + i + 1, &first_after_number, 10);
+                    // number is always positive since '-' is skipped
+                    unsigned long length = (unsigned long)strtol(read + i + 1, &first_after_number, 10);
                     // skip parsed number + that number of bases after the number
                     // (-1 because i is incremented in the surrounding loop)
-                    i = (first_after_number - read) + length - 1;
+                    if (ULONG_MAX - length < i) {
+                        i = ULONG_MAX;
+                    } else {
+                        i = (first_after_number - read) + length - 1;
+                    }
                     break;
                 }
                 case '.':
