@@ -55,7 +55,7 @@ vector<size_t> descending_sorted_indices(const vector<double>& v) {
     size_t i = 0;
     generate(indices.begin(), indices.end(), [&i](){ return i++; });
 
-    sort(indices.begin(), indices.end(), [&v](double i, double j) { return v[i] > v[j]; });
+    sort(indices.begin(), indices.end(), [&v](size_t i, size_t j) { return v[i] > v[j]; });
     return indices;
 }
 
