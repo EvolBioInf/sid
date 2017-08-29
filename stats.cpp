@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <gsl/gsl_cdf.h>
+#include <cfloat>
 
 #include "stats.hpp"
 
@@ -25,9 +26,14 @@ vector<pair<double, double>> relativeLikelihoods(const vector<pair<double, doubl
     return  relative_likelihoods;
 }
 
-double likelihoodRatioTest(double l_H0, double l_H1) {
-    double chisq = -2 * (log(l_H0) - log(max(l_H0, l_H1)));
-    return gsl_cdf_chisq_Q(chisq, 1);
+double likelihoodRatioTest(long double l_H0, long double l_H1) {
+    if (l_H0 != 0) {
+        long double chisq = -2 * (logl(l_H0) - logl(fmaxl(l_H0, l_H1)));
+        // gsl works only with doubles, so we truncate
+        return gsl_cdf_chisq_Q((double)chisq, 1);
+    } else {
+        return gsl_cdf_chisq_Q(DBL_MAX, 1);
+    }
 }
 
 vector<double> likelihoodRatioTest(const vector<pair<double, double>>& likelihoods) {

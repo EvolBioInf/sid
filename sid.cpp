@@ -99,8 +99,8 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             auto aic = [] (double likelihood) {
                 return 2 * 1 - 2 * log(likelihood);
             };
-            double het_aic = aic(gp.het_likelihoods[i]);
-            double hom_aic = aic(gp.hom_likelihoods[i]);
+            double het_aic = aic((double)gp.het_likelihoods[i]);
+            double hom_aic = aic((double)gp.hom_likelihoods[i]);
 
             // compute relative likelihoods
             double het_reL = 1;
@@ -129,8 +129,8 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
 
             int i = index_of[profile];
 
-            double hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
-            double het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
+            auto hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
+            auto het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
 
             cout << pos << sep << profile << sep;
             if (het_ap > hom_ap) {
@@ -141,12 +141,12 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             cout << sep << hom_ap << sep << het_ap << endl;
         }
     } else if (args.selection == "bayes") {
-        vector<double> p_het (profiles.size());
-        vector<double> p_hom (profiles.size());
+        vector<long double> p_het (profiles.size());
+        vector<long double> p_hom (profiles.size());
         vector<string> output (profiles.size());
         for (int i = 0; i < profiles.size(); ++i) {
-            double hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
-            double het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
+            auto hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
+            auto het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
             p_hom[i] = hom_ap / (hom_ap + het_ap);
             p_het[i] = het_ap / (hom_ap + het_ap);
 
@@ -155,7 +155,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
                 label = "het";
             }
             char buffer[256];
-            sprintf(buffer, ",%d.%d.%d.%d,%s,%e,%e", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), p_hom[i], p_het[i]);
+            sprintf(buffer, ",%d.%d.%d.%d,%s,%Le,%Le", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), p_hom[i], p_het[i]);
             output[i] = string(buffer);
         }
 
@@ -178,7 +178,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
 
         int i = 0;
         for (const Profile& p : profiles) {
-            double max_likelihood = -1.0;
+            long double max_likelihood = -1.0;
             string ml_genotype = "";
             double ml_error = -1.0;
             // homozygous
@@ -186,7 +186,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             for (int i = 0; i < 4; ++i) {
                 double error = (double)(p[COV] - p[i]) / p[COV];
                 error = min(ERROR_THRESHOLD, error);
-                double l = profileLikelihoodHomozygous(p, error, i);
+                auto l = profileLikelihoodHomozygous(p, error, i);
                 if (l > max_likelihood) {
                     max_likelihood = l;
                     ml_genotype = to_string(i) + to_string(i);
@@ -200,7 +200,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
                     double error = 1.5 * (double)(p[COV] - p[i] - p[j])/p[COV];
                     // error per base cannot exceed 1.0
                     error = min(ERROR_THRESHOLD, error);
-                    double l = profileLikelihoodHeterozygous(p, error, i, j);
+                    auto l = profileLikelihoodHeterozygous(p, error, i, j);
                     if (l > max_likelihood) {
                         max_likelihood = l;
                         ml_genotype = to_string(i) + to_string(j);
@@ -255,13 +255,13 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             // ml_error = n2+n3+n4 / n1+n2+n3+n4
             double error1 = (double)(p[COV] - p[largest_i]) / p[COV];
             error1 = min(args.error_threshold, error1);
-            double l1 = profileLikelihoodHomozygous(p, error1, largest_i);
+            long double l1 = profileLikelihoodHomozygous(p, error1, largest_i);
 
             // heterozygous
             // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
             double error2 = 1.5 * (double)(p[COV] - p[largest_i] - p[snd_largest_i])/p[COV];
             error2 = min(args.error_threshold, error2);
-            double l2 = profileLikelihoodHeterozygous(p, error2, largest_i, snd_largest_i);
+            long double l2 = profileLikelihoodHeterozygous(p, error2, largest_i, snd_largest_i);
 
             double p1 = likelihoodRatioTest(l2, l1);
             double p2 = likelihoodRatioTest(l1, l2);

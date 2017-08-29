@@ -4,6 +4,7 @@
 #include <limits>
 #include <map>
 #include <numeric>
+#include <gsl/gsl_sf_gamma.h>
 
 #include "likelihoods.hpp"
 #include "optimization.hpp"
@@ -36,45 +37,45 @@ struct MemoizedLogGamma {
     };
 } lngamma {};
 
-double profileLikelihoodHomozygous(const Profile& p, double p_error, int i) {
-    double l = pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
+long double profileLikelihoodHomozygous(const Profile& p, double p_error, int i) {
+    long double l = powl(1 - p_error, p[i]) * powl(p_error / 3, p[COV] - p[i]);
 
     // compute multiomial coefficient with logGamma trick
-    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
+    l *= expl(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
     return l;
 }
 
-double profileLikelihoodHeterozygous(const Profile& p, double p_error, int i, int j) {
-    double l = pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
+long double profileLikelihoodHeterozygous(const Profile& p, double p_error, int i, int j) {
+    long double l = powl((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * powl(p_error/3.0, p[COV] - p[i] - p[j]);
 
     // compute multiomial coefficient with logGamma trick
-    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
+    l *= expl(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
     return l;
 }
 
-double profileLikelihoodHomozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
-    double l = 0.0;
+long double profileLikelihoodHomozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
+    long double l = 0.0;
 
     for (int i = 0; i < 4; ++i) {
-        l += nucleotide_dist[i] * pow(1 - p_error, p[i]) * pow(p_error / 3, p[COV] - p[i]);
+        l += nucleotide_dist[i] * powl(1 - p_error, p[i]) * powl(p_error / 3, p[COV] - p[i]);
     }
     // compute multiomial coefficient with logGamma trick
-    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
+    l *= expl(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
 
     return l;
 }
 
-double profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
-    double l = 0.0;
+long double profileLikelihoodHeterozygous(const Profile& p, const array<double, 4>& nucleotide_dist, double p_error) {
+    long double l = 0.0;
     for (int i = 0; i < 4; ++i) {
         for (int j = i+1; j < 4; ++j) {
-            l += nucleotide_dist[i] * nucleotide_dist[j] * pow((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * pow(p_error/3.0, p[COV] - p[i] - p[j]);
+            l += nucleotide_dist[i] * nucleotide_dist[j] * powl((1.0 - 2.0*p_error/3.0)/2.0, p[i] + p[j]) * powl(p_error/3.0, p[COV] - p[i] - p[j]);
         }
     }
     // compute multiomial coefficient with logGamma trick
-    l *= exp(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
+    l *= expl(lngamma(p[COV] + 1) - lngamma(p[A] + 1) - lngamma(p[C] + 1) - lngamma(p[G] + 1) - lngamma(p[T] + 1));
 
-    double s = 0.0;
+    long double s = 0.0;
     for (int i = 0; i < 4; ++i) {
        s += nucleotide_dist[i] * nucleotide_dist[i];
     }
@@ -105,17 +106,17 @@ double logLikelihood(const gsl_vector* v, void *params_) {
         return numeric_limits<double>::max();
     }
 
-    double likelihood = 0;
+    long double likelihood = 0;
     // for (const auto& [profile, count] : profiles) {
     for (int i = 0; i < profiles.size(); ++i) {
-        double l1 = profileLikelihoodHomozygous(profiles[i], nd, epsilon);
-        double l2 = profileLikelihoodHeterozygous(profiles[i], nd, epsilon);
-        double l = (1.0 - pi) * l1 + pi * l2;
+        long double l1 = profileLikelihoodHomozygous(profiles[i], nd, epsilon);
+        long double l2 = profileLikelihoodHeterozygous(profiles[i], nd, epsilon);
+        long double l = (1.0 - pi) * l1 + pi * l2;
         if (l > 0) {
             likelihood += log(l) * counts[i];
         }
     }
-    return -likelihood;
+    return (double)-likelihood;
 }
 
 array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profiles, const std::vector<int>& counts) {
@@ -153,12 +154,10 @@ GenomeParameters estimateGenomeParameters(const std::vector<Profile>& profiles, 
     cerr << "log likelihood: " << logL << endl;
 
     GenomeParameters gp = GenomeParameters(pi, epsilon);
-    vector<double> likelihoods_hom {};
-    vector<double> likelihoods_het {};
     for (const Profile& profile : profiles) {
-        double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
+        long double l1 = profileLikelihoodHomozygous(profile, nd, epsilon);
         gp.hom_likelihoods.emplace_back(l1);
-        double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
+        long double l2 = profileLikelihoodHeterozygous(profile, nd, epsilon);
         gp.het_likelihoods.emplace_back(l2);
     }
     return gp;
