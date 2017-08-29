@@ -31,8 +31,8 @@ struct arguments {
 void callVariants(const PileupData& pileup, const vector<Profile>& profiles, const GenomeParameters& gp) {
     auto t1 = chrono::high_resolution_clock::now();
 
-    map<Profile, int> index_of {};
-    for (int i = 0; i < profiles.size(); ++i) {
+    map<Profile, unsigned int> index_of {};
+    for (unsigned int i = 0; i < profiles.size(); ++i) {
         index_of.emplace(profiles[i], i);
     }
     auto t2 = chrono::high_resolution_clock::now();
@@ -48,8 +48,10 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
     if (args.selection == "ratio") {
         // compute p-values
         vector<double> p_hom;
+        p_hom.reserve(profiles.size());
         vector<double> p_het;
-        for (int i = 0; i < profiles.size(); ++i) {
+        p_het.reserve(profiles.size());
+        for (unsigned int i = 0; i < profiles.size(); ++i) {
             // p value for heterozygous, H_0: homozygous more likely
             p_het.push_back(likelihoodRatioTest(gp.hom_likelihoods[i], gp.het_likelihoods[i]));
             // p value for homozygous, H_0: heterozygous more likely
@@ -70,31 +72,34 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             p_hom_adj = p_hom;
         }
 
+        vector<string> output;
+        output.reserve(profiles.size());
+        for (size_t i = 0; i < profiles.size(); ++i) {
+            const Profile& p = profiles[i];
+            string label ("inc");
+            if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
+                label = "het";
+            } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
+                label = "hom";
+            }
+            char buffer[256];
+            sprintf(buffer, "%d.%d.%d.%d,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), p_hom_adj[i], p_het_adj[i]);
+            output.emplace_back(buffer);
+        }
+
         cout << "#pos" + sep + "profile" + sep + "class" + sep + "p_hom" + sep + "p_het" << endl;
         for (int ii = 0; ii < pileup.num_sites; ++ii) {
             const int& pos = pileup.positions[ii];
             const Profile& profile = pileup.profiles[ii];
 
             int i = index_of[profile];
-            cout << pos << sep << profile << sep;
-
-            if ((p_het_adj[i] <= args.p_value_threshold) && !(p_hom_adj[i] <= args.p_value_threshold)) {
-                cout << "het";
-            } else if(!(p_het_adj[i] <= args.p_value_threshold) && (p_hom_adj[i] <= args.p_value_threshold)) {
-                cout << "hom";
-            } else {
-                cout << "inc";
-            }
-            cout << sep << p_hom_adj[i] << sep << p_het_adj[i] << endl;
+            printf("%d,%s\n", pos, output[i].c_str());
         }
     } else if (args.selection == "rel") {
-        cout << "#pos" + sep + "profile" + sep + "class" + sep + "reL_hom" + sep + "reL_het" << endl;
-        for (int ii = 0; ii < pileup.num_sites; ++ii) {
-            const int& pos = pileup.positions[ii];
-            const Profile& profile = pileup.profiles[ii];
-
-            int i = index_of[profile];
-
+        vector<string> output;
+        output.reserve(profiles.size());
+        for (size_t i = 0; i < profiles.size(); ++i) {
+            const Profile& p = profiles[i];
             // compute Akaike Information Criterion with 1 degree of freedom
             auto aic = [] (double likelihood) {
                 return 2 * 1 - 2 * log(likelihood);
@@ -110,16 +115,25 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             } else {
                 het_reL = exp((hom_aic - het_aic) / 2.0);
             }
-
-            cout << pos << sep << profile << sep;
+            string label ("inc");
             if (hom_reL < 1.0) {
-                cout << "het";
+                label = "het";
             } else if(het_reL < 1.0) {
-                cout << "hom";
-            } else {
-                cout << "inc";
+                label = "hom";
             }
-            cout << sep << hom_reL << sep << het_reL << endl;
+            char buffer [256];
+            sprintf(buffer, "%d.%d.%d.%d,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), hom_reL, het_reL);
+            output.emplace_back(buffer);
+
+        }
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "reL_hom" + sep + "reL_het" << endl;
+        for (int ii = 0; ii < pileup.num_sites; ++ii) {
+            const int& pos = pileup.positions[ii];
+            const Profile& p = pileup.profiles[ii];
+
+            int i = index_of[p];
+
+            printf("%d,%s\n", pos, output[i].c_str());
         }
     } else if (args.selection == "map") {
         cout << "#pos" + sep + "profile" + sep + "class" + sep + "ap_hom" + sep + "ap_het" << endl;
@@ -141,22 +155,21 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             cout << sep << hom_ap << sep << het_ap << endl;
         }
     } else if (args.selection == "bayes") {
-        vector<long double> p_het (profiles.size());
-        vector<long double> p_hom (profiles.size());
-        vector<string> output (profiles.size());
+        vector<string> output;
+        output.reserve(profiles.size());
         for (int i = 0; i < profiles.size(); ++i) {
             auto hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
             auto het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
-            p_hom[i] = hom_ap / (hom_ap + het_ap);
-            p_het[i] = het_ap / (hom_ap + het_ap);
+            auto p_hom = hom_ap / (hom_ap + het_ap);
+            auto p_het = het_ap / (hom_ap + het_ap);
 
             string label = "hom";
-            if (p_het[i] > p_hom[i]) {
+            if (p_het > p_hom) {
                 label = "het";
             }
             char buffer[256];
-            sprintf(buffer, ",%d.%d.%d.%d,%s,%Le,%Le", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), p_hom[i], p_het[i]);
-            output[i] = string(buffer);
+            sprintf(buffer, ",%d.%d.%d.%d,%s,%Le,%Le", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), p_hom, p_het);
+            output.emplace_back(buffer);
         }
 
         t3 = chrono::high_resolution_clock::now();
@@ -171,69 +184,9 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
 
             printf("%d%s\n", pos, output[i].c_str());
         }
-    } else if (args.selection == "localmax") {
-        const double ERROR_THRESHOLD = 0.1;
-        vector<double> errors (profiles.size());
-        vector<string> genotypes (profiles.size());
-
-        int i = 0;
-        for (const Profile& p : profiles) {
-            long double max_likelihood = -1.0;
-            string ml_genotype = "";
-            double ml_error = -1.0;
-            // homozygous
-            // ml_error = n2+n3+n4 / n1+n2+n3+n4
-            for (int i = 0; i < 4; ++i) {
-                double error = (double)(p[COV] - p[i]) / p[COV];
-                error = min(ERROR_THRESHOLD, error);
-                auto l = profileLikelihoodHomozygous(p, error, i);
-                if (l > max_likelihood) {
-                    max_likelihood = l;
-                    ml_genotype = to_string(i) + to_string(i);
-                    ml_error = error;
-                }
-            }
-            // heterozygous
-            // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
-            for (int i = 0; i < 4; ++i) {
-                for (int j = i+1; j < 4; ++j) {
-                    double error = 1.5 * (double)(p[COV] - p[i] - p[j])/p[COV];
-                    // error per base cannot exceed 1.0
-                    error = min(ERROR_THRESHOLD, error);
-                    auto l = profileLikelihoodHeterozygous(p, error, i, j);
-                    if (l > max_likelihood) {
-                        max_likelihood = l;
-                        ml_genotype = to_string(i) + to_string(j);
-                        ml_error = error;
-                    }
-                }
-            }
-            errors[i] = ml_error;
-            genotypes[i] = ml_genotype;
-            ++i;
-        }
-        cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err" << endl;
-        for (int ii = 0; ii < pileup.num_sites; ++ii) {
-            const int& pos = pileup.positions[ii];
-            const Profile& profile = pileup.profiles[ii];
-
-            int i = index_of[profile];
-
-            cout << pos << sep << profile << sep;
-            if (genotypes[i][0] == genotypes[i][1]) {
-                cout << "hom";
-            } else {
-                cout << "het";
-            }
-            cout << sep << genotypes[i] << sep << errors[i];
-            cout << endl;
-        }
     } else if (args.selection == "local") {
-        vector<double> errors (profiles.size());
-        vector<string> genotypes (profiles.size());
-        vector<double> pvalues (profiles.size());
-
-        int ii = 0;
+        vector<string> output;
+        output.reserve(profiles.size());
         for (const Profile& p : profiles) {
             int largest = -1;
             int snd_largest = -1;
@@ -266,26 +219,38 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             double p1 = likelihoodRatioTest(l2, l1);
             double p2 = likelihoodRatioTest(l1, l2);
 
+            double error = -1.0;
+            double pvalue = -1.0;
+            string genotype;
             if (p1 < args.p_value_threshold && p2 > args.p_value_threshold) {
-                errors[ii] = error1;
-                genotypes[ii] = to_string(largest_i) + to_string(largest_i);
-                pvalues[ii] = likelihoodRatioTest(l2, l1);
+                error = error1;
+                genotype = to_string(largest_i) + to_string(largest_i);
+                pvalue = p1;
             } else if (p1 > args.p_value_threshold && p2 < args.p_value_threshold) {
-                errors[ii] = error2;
-                genotypes[ii] = to_string(largest_i) + to_string(snd_largest_i);
-                pvalues[ii] = likelihoodRatioTest(l1, l2);
+                error = error2;
+                genotype = to_string(largest_i) + to_string(snd_largest_i);
+                pvalue = p2;
             } else {
                 if (l1 > l2) {
-                    errors[ii] = error1;
-                    genotypes[ii] = to_string(largest_i) + to_string(largest_i);
-                    pvalues[ii] = p1;
+                    error = error1;
+                    genotype = to_string(largest_i) + to_string(largest_i);
+                    pvalue = p1;
                 } else {
-                    errors[ii] = error2;
-                    genotypes[ii] = to_string(largest_i) + to_string(snd_largest_i);
-                    pvalues[ii] = p2;
+                    error = error2;
+                    genotype = to_string(largest_i) + to_string(snd_largest_i);
+                    pvalue = p2;
                 }
             }
-            ++ii;
+
+            string label {"hom"};
+            if (pvalue > args.p_value_threshold) {
+                label = "inc";
+            } else if (genotype[0] != genotype[1]) {
+                label = "het";
+            }
+            char buffer[256];
+            sprintf(buffer, "%d.%d.%d.%d,%s,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), genotype.c_str(), error, pvalue);
+            output.emplace_back(buffer);
         }
         cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err" + sep + "p" << endl;
         for (int ii = 0; ii < pileup.num_sites; ++ii) {
@@ -293,17 +258,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             const Profile& profile = pileup.profiles[ii];
 
             int i = index_of[profile];
-
-            cout << pos << sep << profile << sep;
-            if (pvalues[i] > args.p_value_threshold) {
-                cout << "inc";
-            } else if (genotypes[i][0] == genotypes[i][1]) {
-                cout << "hom";
-            } else {
-                cout << "het";
-            }
-            cout << sep << genotypes[i] << sep << errors[i] << sep << pvalues[i];
-            cout << endl;
+            printf("%d,%s\n", pos, output[i].c_str());
         }
     } else {
         cerr << "# Unknown model selection procedure: " << args.selection << endl;
