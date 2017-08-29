@@ -45,13 +45,13 @@ vector<double> likelihoodRatioTest(const vector<pair<double, double>>& likelihoo
     return p_values;
 }
 
-vector<double> adjustBonferroni(const vector<double>& p_values, int n) {
+vector<double> adjustBonferroni(const vector<double>& p_values, size_t n) {
     if (n <= 0) {
         n = p_values.size();
     }
     vector<double> adjusted_p_values (p_values.size());
     transform(p_values.begin(), p_values.end(), adjusted_p_values.begin(),
-              [&n](double p) { return p*n; });
+              [&n](double p) { return p * double(n); });
     return adjusted_p_values;
 }
 
@@ -69,10 +69,10 @@ vector<double> adjustBenjaminiHochberg(const vector<double>& p_values) {
     vector<double> adjusted_p_values (p_values.size());
     vector<size_t> sorted = descending_sorted_indices(p_values);
 
-    int m = p_values.size();
+    size_t m = p_values.size();
     adjusted_p_values[sorted[0]] = p_values[sorted[0]];
-    for(int i = 1; i < sorted.size(); ++i) {
-        adjusted_p_values[sorted[i]] = min(adjusted_p_values[sorted[i-1]], p_values[sorted[i]] * m / (m-i));
+    for(size_t i = 1; i < sorted.size(); ++i) {
+        adjusted_p_values[sorted[i]] = min(adjusted_p_values[sorted[i-1]], p_values[sorted[i]] * double(m) / double(m-i));
     }
     replace_if(adjusted_p_values.begin(), adjusted_p_values.end(),
                [](double d) {return d > 1;}, 1.0);

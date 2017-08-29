@@ -2,7 +2,6 @@
 #define OPTIMIZATION_HPP
 
 #include <gsl/gsl_multimin.h>
-#include <gsl/gsl_sf_gamma.h>
 #include <functional>
 #include <array>
 

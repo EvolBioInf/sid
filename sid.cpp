@@ -32,7 +32,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
     auto t1 = chrono::high_resolution_clock::now();
 
     map<Profile, unsigned int> index_of {};
-    for (unsigned int i = 0; i < profiles.size(); ++i) {
+    for (size_t i = 0; i < profiles.size(); ++i) {
         index_of.emplace(profiles[i], i);
     }
     auto t2 = chrono::high_resolution_clock::now();
@@ -51,7 +51,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
         p_hom.reserve(profiles.size());
         vector<double> p_het;
         p_het.reserve(profiles.size());
-        for (unsigned int i = 0; i < profiles.size(); ++i) {
+        for (size_t i = 0; i < profiles.size(); ++i) {
             // p value for heterozygous, H_0: homozygous more likely
             p_het.push_back(likelihoodRatioTest(gp.hom_likelihoods[i], gp.het_likelihoods[i]));
             // p value for homozygous, H_0: heterozygous more likely
@@ -157,7 +157,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
     } else if (args.selection == "bayes") {
         vector<string> output;
         output.reserve(profiles.size());
-        for (int i = 0; i < profiles.size(); ++i) {
+        for (size_t i = 0; i < profiles.size(); ++i) {
             auto hom_ap = gp.hom_likelihoods[i] * (1 - gp.heterozygosity);
             auto het_ap = gp.het_likelihoods[i] * gp.heterozygosity;
             auto p_hom = hom_ap / (hom_ap + het_ap);
@@ -313,9 +313,9 @@ void processFile(FILE* input) {
 void printHelp(const char* program_name, const vector<struct option>& options, const vector<string>& descriptions) {
     cout << "Usage: " << program_name << " [options] [input files]" << endl;
     cout << "Options:" << endl;
-    for (int i = 0; i < options.size() && i < descriptions.size(); ++i) {
+    for (size_t i = 0; i < options.size() && i < descriptions.size(); ++i) {
         cout << '\t';
-        cout << '-' << (char) options[i].val;
+        cout << '-' << char(options[i].val);
         cout << ", --" << options[i].name;
         cout << "\t" << descriptions[i] << endl;
     }
@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
 
     string optstring;
     for (struct option opt : options) {
-        optstring += opt.val;
+        optstring += char(opt.val);
         // use the fact that no_argument = 0, required_argument = 1, optional_argument = 2
         for (int i = 0; i < opt.has_arg; ++i) {
             optstring += ':';
@@ -357,7 +357,7 @@ int main(int argc, char** argv) {
 
     double p_value = -1.0;
     double error_threshold = 0.1;
-    while ((opt = getopt_long(argc, argv, optstring.c_str(), options.data(), &optindex)) != -1) {
+    while ((opt = (char)getopt_long(argc, argv, optstring.c_str(), options.data(), &optindex)) != -1) {
         string value = optarg == nullptr ? "" : string(optarg);
         switch (opt) {
         case 'h':

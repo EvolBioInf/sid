@@ -107,8 +107,7 @@ double logLikelihood(const gsl_vector* v, void *params_) {
     }
 
     long double likelihood = 0;
-    // for (const auto& [profile, count] : profiles) {
-    for (int i = 0; i < profiles.size(); ++i) {
+    for (size_t i = 0; i < profiles.size(); ++i) {
         long double l1 = profileLikelihoodHomozygous(profiles[i], nd, epsilon);
         long double l2 = profileLikelihoodHeterozygous(profiles[i], nd, epsilon);
         long double l = (1.0 - pi) * l1 + pi * l2;
@@ -121,18 +120,19 @@ double logLikelihood(const gsl_vector* v, void *params_) {
 
 array<double, 4> computeNucleotideDistribution(const std::vector<Profile>& profiles, const std::vector<int>& counts) {
     array<unsigned long int, 5> acc {0,0,0,0,0};
-    for (int i = 0; i < profiles.size(); ++i) {
+    for (size_t i = 0; i < profiles.size(); ++i) {
         for (auto j : {A,C,G,T,COV}) {
             acc[j] += counts[i] * profiles[i][j];
         }
     }
 
+    double N = double(acc[COV]);
     if (acc[COV] != 0) {
         return {
-            (double)acc[A] / acc[COV],
-            (double)acc[C] / acc[COV],
-            (double)acc[G] / acc[COV],
-            (double)acc[T] / acc[COV]};
+            double(acc[A]) / N,
+            double(acc[C]) / N,
+            double(acc[G]) / N,
+            double(acc[T]) / N};
     } else {
         return {0.25,0.25,0.25,0.25};
     }

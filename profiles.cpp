@@ -1,3 +1,5 @@
+#include <numeric>
+#include <limits>
 #include <climits>
 #include <cstdlib>
 #include <cstring>
@@ -29,7 +31,8 @@ bool inline tryIncrementBaseCount(char base, Profile& p) {
 
 Profile parseReadBases(const char* read, char reference) {
     Profile p {0, 0, 0, 0, 0};
-    for(unsigned long i = 0; i < strlen(read); ++i) {
+
+    for(size_t i = 0; i < strlen(read); ++i) {
         char base = read[i];
         if (!tryIncrementBaseCount(base, p)) {
             switch (base) {
@@ -46,11 +49,13 @@ Profile parseReadBases(const char* read, char reference) {
                     char* first_after_number;
                     // number is always positive since '-' is skipped
                     unsigned long length = (unsigned long)strtol(read + i + 1, &first_after_number, 10);
-                    // skip parsed number + that number of bases after the number
-                    // (-1 because i is incremented in the surrounding loop)
-                    if (ULONG_MAX - length < i) {
-                        i = ULONG_MAX;
+
+                    // overflow handled manually, surrounding for loop will then terminate
+                    if (numeric_limits<decltype(i)>::max() - length < i) {
+                        i = numeric_limits<decltype(i)>::max();
                     } else {
+                        // skip parsed number + that number of bases after the number
+                        // (-1 because i is incremented in the surrounding loop)
                         i = (first_after_number - read) + length - 1;
                     }
                     break;
@@ -65,8 +70,14 @@ Profile parseReadBases(const char* read, char reference) {
             }
         }
     }
-    p[COV] = p[A] + p[C] + p[G] + p[T];
-    return p;
+    auto sum = p[A] + p[C] + p[G] + p[T];
+    if (sum > numeric_limits<decltype(p)::value_type>::max()) {
+        cerr << "Overflow error during base parsing!";
+        exit(EXIT_FAILURE);
+    } else {
+        p[COV] = (decltype(p)::value_type)sum;
+        return p;
+    }
 }
 
 PileupLine parsePileupLine(char* line) {
