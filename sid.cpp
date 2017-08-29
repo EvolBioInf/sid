@@ -25,6 +25,7 @@ struct arguments {
     Correction correction {Correction::Bonferroni};
     double p_value_threshold {0.05};
     string selection = "rel";
+    double error_threshold = 0.1;
 } args {};
 
 void callVariants(const PileupData& pileup, const vector<Profile>& profiles, const GenomeParameters& gp) {
@@ -228,14 +229,12 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             cout << endl;
         }
     } else if (args.selection == "local") {
-        const double ERROR_THRESHOLD = 0.1;
         vector<double> errors (profiles.size());
         vector<string> genotypes (profiles.size());
         vector<double> pvalues (profiles.size());
 
         int ii = 0;
         for (const Profile& p : profiles) {
-            array<int, 4> sorted_bases;
             int largest = -1;
             int snd_largest = -1;
             int largest_i = -1;
@@ -255,13 +254,13 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             // homozygous
             // ml_error = n2+n3+n4 / n1+n2+n3+n4
             double error1 = (double)(p[COV] - p[largest_i]) / p[COV];
-            error1 = min(ERROR_THRESHOLD, error1);
+            error1 = min(args.error_threshold, error1);
             double l1 = profileLikelihoodHomozygous(p, error1, largest_i);
 
             // heterozygous
             // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
             double error2 = 1.5 * (double)(p[COV] - p[largest_i] - p[snd_largest_i])/p[COV];
-            error2 = min(ERROR_THRESHOLD, error2);
+            error2 = min(args.error_threshold, error2);
             double l2 = profileLikelihoodHeterozygous(p, error2, largest_i, snd_largest_i);
 
             double p1 = likelihoodRatioTest(l2, l1);
@@ -383,6 +382,9 @@ int main(int argc, char** argv) {
     options.push_back({"selection", required_argument, nullptr, 's'});
     descriptions.push_back("Model selection procedure, one of 'rel' (relative likelihood), 'ratio' (likelihood ratio test)");
 
+    options.push_back({"error_threshold", required_argument, nullptr, 'e'});
+    descriptions.push_back("Largest allowed error per site for local selection procedure");
+
     // end marker for getopt_long
     options.push_back({0,0,0,0});
 
@@ -399,6 +401,7 @@ int main(int argc, char** argv) {
     char opt = 0;
 
     double p_value = -1.0;
+    double error_threshold = 0.1;
     while ((opt = getopt_long(argc, argv, optstring.c_str(), options.data(), &optindex)) != -1) {
         string value = optarg == nullptr ? "" : string(optarg);
         switch (opt) {
@@ -432,6 +435,10 @@ int main(int argc, char** argv) {
             /*     exit(EXIT_FAILURE); */
             /* } */
             args.selection = value;
+            break;
+        case 'e':
+            error_threshold = atof(optarg);
+            args.error_threshold = error_threshold;
             break;
         default:
             cerr << "# Unknown option character: " << opt << " (" << (int)opt << ")" << endl;
