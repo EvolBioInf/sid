@@ -26,6 +26,7 @@ struct arguments {
     double p_value_threshold {0.05};
     string selection = "rel";
     double error_threshold = 0.1;
+    bool global_lower_threshold = false;
 } args {};
 
 void callVariants(const PileupData& pileup, const vector<Profile>& profiles, const GenomeParameters& gp) {
@@ -208,12 +209,18 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             // ml_error = n2+n3+n4 / n1+n2+n3+n4
             double error1 = (double)(p[COV] - p[largest_i]) / p[COV];
             error1 = min(args.error_threshold, error1);
+            if(args.global_lower_threshold) {
+                error1 = max(gp.error_rate, error1);
+            }
             long double l1 = profileLikelihoodHomozygous(p, error1, largest_i);
 
             // heterozygous
             // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
             double error2 = 1.5 * (double)(p[COV] - p[largest_i] - p[snd_largest_i])/p[COV];
             error2 = min(args.error_threshold, error2);
+            if(args.global_lower_threshold) {
+                error2 = max(gp.error_rate, error2);
+            }
             long double l2 = profileLikelihoodHeterozygous(p, error2, largest_i, snd_largest_i);
 
             double p1 = likelihoodRatioTest(l2, l1);
@@ -340,6 +347,9 @@ int main(int argc, char** argv) {
     options.push_back({"error_threshold", required_argument, nullptr, 'e'});
     descriptions.push_back("Largest allowed error per site for local selection procedure");
 
+    options.push_back({"global_lower_threshold", no_argument, nullptr, 'E'});
+    descriptions.push_back("Threshold site error from below with global estimated error rate");
+
     // end marker for getopt_long
     options.push_back({0,0,0,0});
 
@@ -394,6 +404,9 @@ int main(int argc, char** argv) {
         case 'e':
             error_threshold = atof(optarg);
             args.error_threshold = error_threshold;
+            break;
+        case 'E':
+            args.global_lower_threshold = true;
             break;
         default:
             cerr << "# Unknown option character: " << opt << " (" << (int)opt << ")" << endl;
