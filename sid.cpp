@@ -84,7 +84,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
                 label = "hom";
             }
             char buffer[256];
-            sprintf(buffer, "%d.%d.%d.%d,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), p_hom_adj[i], p_het_adj[i]);
+            sprintf(buffer, "%d:%d:%d:%d,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), p_hom_adj[i], p_het_adj[i]);
             output.emplace_back(buffer);
         }
 
@@ -123,7 +123,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
                 label = "hom";
             }
             char buffer [256];
-            sprintf(buffer, "%d.%d.%d.%d,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), hom_reL, het_reL);
+            sprintf(buffer, "%d:%d:%d:%d,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), hom_reL, het_reL);
             output.emplace_back(buffer);
 
         }
@@ -169,7 +169,8 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
                 label = "het";
             }
             char buffer[256];
-            sprintf(buffer, ",%d.%d.%d.%d,%s,%Le,%Le", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), p_hom, p_het);
+            /* sprintf(buffer, ",%d:%d:%d:%d,%s,%Le,%Le", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), p_hom, p_het); */
+            sprintf(buffer, ",%d:%d:%d:%d,%s,%e,%e", profiles[i][0], profiles[i][1], profiles[i][2],profiles[i][3], label.c_str(), (double)p_hom, (double)p_het);
             output.emplace_back(buffer);
         }
 
@@ -229,22 +230,25 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             double error = -1.0;
             double pvalue = -1.0;
             string genotype;
+            auto from_indices = [](int i, int j) {
+                return string {"ACGT"[i], "ACGT"[j]};
+            };
             if (p1 < args.p_value_threshold && p2 > args.p_value_threshold) {
                 error = error1;
-                genotype = to_string(largest_i) + to_string(largest_i);
+                genotype = from_indices(largest_i, largest_i);
                 pvalue = p1;
             } else if (p1 > args.p_value_threshold && p2 < args.p_value_threshold) {
                 error = error2;
-                genotype = to_string(largest_i) + to_string(snd_largest_i);
+                genotype = from_indices(largest_i, snd_largest_i);
                 pvalue = p2;
             } else {
                 if (l1 > l2) {
                     error = error1;
-                    genotype = to_string(largest_i) + to_string(largest_i);
+                    genotype = from_indices(largest_i, largest_i);
                     pvalue = p1;
                 } else {
                     error = error2;
-                    genotype = to_string(largest_i) + to_string(snd_largest_i);
+                    genotype = from_indices(largest_i, snd_largest_i);
                     pvalue = p2;
                 }
             }
@@ -256,7 +260,7 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
                 label = "het";
             }
             char buffer[256];
-            sprintf(buffer, "%d.%d.%d.%d,%s,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), genotype.c_str(), error, pvalue);
+            sprintf(buffer, "%d:%d:%d:%d,%s,%s,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), genotype.c_str(), error, pvalue);
             output.emplace_back(buffer);
         }
         cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err" + sep + "p" << endl;
