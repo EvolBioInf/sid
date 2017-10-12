@@ -271,6 +271,70 @@ void callVariants(const PileupData& pileup, const vector<Profile>& profiles, con
             int i = index_of[profile];
             printf("%d,%s\n", pos, output[i].c_str());
         }
+    } else if (args.selection == "localml") {
+        vector<string> output;
+        output.reserve(profiles.size());
+        for (const Profile& p : profiles) {
+            int largest = -1;
+            int snd_largest = -1;
+            int largest_i = -1;
+            int snd_largest_i = -1;
+            for (int i = 0; i < 4; ++i) {
+                if (p[i] > largest) {
+                    snd_largest = largest;
+                    snd_largest_i = largest_i;
+                    largest = p[i];
+                    largest_i = i;
+                } else if (p[i] > snd_largest) {
+                    snd_largest = p[i];
+                    snd_largest_i = i;
+                }
+            }
+
+            // homozygous
+            // ml_error = n2+n3+n4 / n1+n2+n3+n4
+            double error1 = (double)(p[COV] - p[largest_i]) / p[COV];
+            error1 = min(args.error_threshold, error1);
+            if(args.global_lower_threshold) {
+                error1 = max(gp.error_rate, error1);
+            }
+            long double l1 = profileLikelihoodHomozygous(p, error1, largest_i);
+
+            // heterozygous
+            // ml_error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
+            double error2 = 1.5 * (double)(p[COV] - p[largest_i] - p[snd_largest_i])/p[COV];
+            error2 = min(args.error_threshold, error2);
+            if(args.global_lower_threshold) {
+                error2 = max(gp.error_rate, error2);
+            }
+            long double l2 = profileLikelihoodHeterozygous(p, error2, largest_i, snd_largest_i);
+
+            l1 *= (1 - gp.heterozygosity);
+            l2 *= gp.heterozygosity;
+
+            double p1 = double(l1 / l1 + l2);
+            double p2 = double(l2 / l1 + l2);
+
+            const string BASE = "ACGT";
+            string label {"hom"};
+            string genotype {BASE[largest_i], BASE[largest_i]};
+            if (l1 < l2) {
+                label = "het";
+                genotype[1] = BASE[snd_largest_i];
+            }
+
+            char buffer[256];
+            sprintf(buffer, "%d:%d:%d:%d,%s,%s,%e,%e,%e,%e", p[A], p[C], p[G], p[T], label.c_str(), genotype.c_str(), error1, error2, p1, p2);
+            output.emplace_back(buffer);
+        }
+        cout << "#pos" + sep + "profile" + sep + "class" + sep + "gen" + sep + "err_hom" + sep + + "err_het" + sep + "p1" + sep + "p2" << endl;
+        for (int ii = 0; ii < pileup.num_sites; ++ii) {
+            const int& pos = pileup.positions[ii];
+            const Profile& profile = pileup.profiles[ii];
+
+            int i = index_of[profile];
+            printf("%d,%s\n", pos, output[i].c_str());
+        }
     } else {
         cerr << "# Unknown model selection procedure: " << args.selection << endl;
         exit(EXIT_FAILURE);
