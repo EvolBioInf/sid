@@ -1,9 +1,13 @@
 # Repository-specific
 /sid
+/sid2
 /test/test
 
 # C++
 *.o
+
+# IDE
+/.vscode
 
 # misc
 \#*
