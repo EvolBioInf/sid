@@ -9,9 +9,10 @@ template <int N>
 struct FunctionMinimizerResult {
     std::array<double, N> x;
     double fval;
+    bool converged;
 
-    FunctionMinimizerResult(std::array<double, N> x, double fval)
-        : x{x}, fval{fval} {}
+    FunctionMinimizerResult(std::array<double, N> x, double fval, bool converged)
+        : x{x}, fval{fval}, converged{converged} {}
 };
 
 template <int N>
@@ -21,6 +22,7 @@ class FunctionMinimizer {
         gsl_vector* step_sizes;
         gsl_multimin_fminimizer* minimizer;
         gsl_multimin_function minimize;
+        int max_iterations = 1000;
     public:
         FunctionMinimizer(std::array<double, N> init_x, std::array<double, N> init_stepsizes);
         ~FunctionMinimizer();
@@ -64,11 +66,13 @@ FunctionMinimizerResult<N> FunctionMinimizer<N>::run(double (*f)(const gsl_vecto
         status = gsl_multimin_test_size(size, 1e-5);
 
         if (status == GSL_SUCCESS) {
-            std::cerr << "# Function minimization converged in " << i << " iterations." << std::endl;
+            std::cerr << "# GSL function minimization converged in " << i << " iterations." << std::endl;
         }
-    } while (status == GSL_CONTINUE && i < 1000);
+    } while (status == GSL_CONTINUE && i < this->max_iterations);
+    bool converged {true};
     if (status == GSL_CONTINUE) {
-        std::cerr << "Error: function minimization did not converge in " << i << " iterations!" << std::endl;
+        converged = false;
+        std::cerr << "# Error: GSL function minimization did not converge in " << i << " iterations!" << std::endl;
     }
 
     array<double, N> result;
@@ -78,7 +82,8 @@ FunctionMinimizerResult<N> FunctionMinimizer<N>::run(double (*f)(const gsl_vecto
 
     return FunctionMinimizerResult<N> {
         result,
-        this->minimizer->fval
+        this->minimizer->fval,
+        converged
     };
 }
 
