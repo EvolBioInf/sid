@@ -8,6 +8,7 @@ AC_CONFIG_SRCDIR(sid.cpp)
 # check for c++ compiler
 AC_PROG_CXX([g++ clang++])
 AC_PROG_CXX
+AC_OPENMP
 
 # recommended check for GNU scientific library, from https://www.gnu.org/software/gsl/manual/html_node/Autoconf-Macros.html (6.6.2017)
 AC_CHECK_LIB([m],[cos])

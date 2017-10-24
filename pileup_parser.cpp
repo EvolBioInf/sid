@@ -1,40 +1,40 @@
 #include <cctype>
+#include <cstring>
+#include <limits>
 #include <stdexcept>
 
-PileupLine parsePileupLine(char* line, bool parse_base_qualities, bool parse_mapping_qualities) {
-    const string MALFORMED = "Malformed pileup line";
-    const string MALFORMED_OR_MISSING = "Malformed pileup line or missing mapping qualities";
-    const char* DELIM = " \t";
-    char* saveptr;
+#include "pileup_parser.hpp"
 
+const std::string MALFORMED = "Malformed pileup line";
+const std::string MALFORMED_OR_MISSING = "Malformed pileup line or missing mapping qualities";
+const char* DELIM = " \t";
+
+
+PileupLine parsePileupLine(char* line, bool parse_base_qualities, bool parse_mapping_qualities) {
+    char* saveptr = nullptr;
     PileupLine result;
 
-    // chromosome name
-    char* chrom = strtok_r(line, DELIM, &saveptr);
-    result.chrom = chrom;
+    char* chromosome_name = strtok_r(line, DELIM, &saveptr);
+    result.chromosome_name = chromosome_name;
 
-    // read position
-    char* pos = strtok_r(nullptr, DELIM, &saveptr);
-    if (pos == nullptr) {
+    char* position = strtok_r(nullptr, DELIM, &saveptr);
+    if (position == nullptr) {
         throw std::invalid_argument {MALFORMED};
     }
-    result.pos = atoi(pos);
+    result.position = atoi(position);
 
-    // read reference base
-    char* ref = strtok_r(nullptr, DELIM, &saveptr);
-    if (ref == nullptr) {
+    char* reference = strtok_r(nullptr, DELIM, &saveptr);
+    if (reference == nullptr || strlen(reference) != 1) {
         throw std::invalid_argument {MALFORMED};
     }
-    result.reference_base = ref[0];
+    result.reference_base = reference[0];
 
-    // read coverage
-    char* cov = strtok_r(nullptr, DELIM, &saveptr);
-    if (cov == nullptr) {
+    char* coverage_str = strtok_r(nullptr, DELIM, &saveptr);
+    if (coverage_str == nullptr) {
         throw std::invalid_argument {MALFORMED};
     }
-    int coverage = atoi(cov);
+    int coverage = atoi(coverage_str);
 
-    // parse bases
     char* read_bases = strtok_r(nullptr, DELIM, &saveptr);
     if (read_bases == nullptr) {
         throw std::invalid_argument {MALFORMED};
@@ -75,38 +75,53 @@ ReadStack parseReadBases(const char* read_bases, char reference, int coverage) {
 
     for(size_t i = 0; i < strlen(read_bases); ++i) {
         char base = read_bases[i];
-        if(std::isupper(base)) {
-            result.strands.push_back(1);
-        } else if (std::islower(base)) {
-            result.strands.push_back(0);
+        if (base == '.') {
+            base = char(std::toupper(reference));
+        }
+        else if (base == ',') {
+            base = char(std::tolower(reference));
         }
         switch (base) {
             case 'a':
+                result.bases.push_back('A');
+                result.strands.push_back(0);
+                result.counts[0] += 1;
+                break;
             case 'A':
                 result.bases.push_back('A');
-                ++result.counts[0];
+                result.strands.push_back(1);
+                result.counts[0] += 1;
                 break;
             case 'c':
+                result.bases.push_back('C');
+                result.strands.push_back(0);
+                result.counts[1] += 1;
+                break;
             case 'C':
                 result.bases.push_back('C');
-                ++result.counts[1];
+                result.strands.push_back(1);
+                result.counts[1] += 1;
                 break;
             case 'g':
+                result.bases.push_back('G');
+                result.strands.push_back(0);
+                result.counts[2] += 1;
+                break;
             case 'G':
                 result.bases.push_back('G');
-                ++result.counts[2];
+                result.strands.push_back(1);
+                result.counts[2] += 1;
                 break;
             case 't':
+                result.bases.push_back('T');
+                result.strands.push_back(0);
+                result.counts[3] += 1;
+                break;
             case 'T':
                 result.bases.push_back('T');
-                ++result.counts[3];
-                break;
-            case ',':
-                result.strands.push_back(0);
-                result.bases.push_back(toupper(reference)); break;
-            case '.':
                 result.strands.push_back(1);
-                result.bases.push_back(toupper(reference)); break;
+                result.counts[3] += 1;
+                break;
             case '^':
                 // skip next char
                 ++i; break;
@@ -140,8 +155,8 @@ ReadStack parseReadBases(const char* read_bases, char reference, int coverage) {
 std::vector<uint8_t> parseQualities(const char* base_qualities, int coverage) {
     std::vector<uint8_t> result;
     result.reserve(coverage);
-    for (char* q = base_qualities; *q != '\0' && *q != '\t' && *q != '\n'; ++q) {
-        uint8_t quality = uint8_t(*q) - 33;
+    for (const char* q = base_qualities; *q != '\0' && *q != '\t' && *q != '\n'; ++q) {
+        uint8_t quality = uint8_t(*q - 33);
         // FIXME lower threshold for qualities necessary? -> adapt processing code if 0 is allowed
         if (quality < 1) {
             quality = 1;
@@ -150,4 +165,3 @@ std::vector<uint8_t> parseQualities(const char* base_qualities, int coverage) {
     }
     return result;
 }
-
