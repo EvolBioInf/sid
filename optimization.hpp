@@ -1,9 +1,10 @@
 #ifndef OPTIMIZATION_HPP
 #define OPTIMIZATION_HPP
 
-#include <gsl/gsl_multimin.h>
-#include <functional>
 #include <array>
+#include <functional>
+#include <gsl/gsl_multimin.h>
+#include <iostream>
 
 template <int N>
 struct FunctionMinimizerResult {
