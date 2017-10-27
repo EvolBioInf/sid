@@ -1,41 +1,41 @@
+#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
 
-#include "pileup_parser.hpp"
+#include "pileup.hpp"
 
 const std::string MALFORMED = "Malformed pileup line";
 const std::string MALFORMED_OR_MISSING = "Malformed pileup line or missing mapping qualities";
-const char* DELIM = " \t";
-
+const char* FIELD_SEPARATORS = " \t";
 
 PileupLine parsePileupLine(char* line, bool parse_base_qualities, bool parse_mapping_qualities) {
     char* saveptr = nullptr;
     PileupLine result;
 
-    char* chromosome_name = strtok_r(line, DELIM, &saveptr);
+    char* chromosome_name = strtok_r(line, FIELD_SEPARATORS, &saveptr);
     result.chromosome_name = chromosome_name;
 
-    char* position = strtok_r(nullptr, DELIM, &saveptr);
+    char* position = strtok_r(nullptr, FIELD_SEPARATORS, &saveptr);
     if (position == nullptr) {
         throw std::invalid_argument {MALFORMED};
     }
     result.position = atoi(position);
 
-    char* reference = strtok_r(nullptr, DELIM, &saveptr);
+    char* reference = strtok_r(nullptr, FIELD_SEPARATORS, &saveptr);
     if (reference == nullptr || strlen(reference) != 1) {
         throw std::invalid_argument {MALFORMED};
     }
     result.reference_base = reference[0];
 
-    char* coverage_str = strtok_r(nullptr, DELIM, &saveptr);
+    char* coverage_str = strtok_r(nullptr, FIELD_SEPARATORS, &saveptr);
     if (coverage_str == nullptr) {
         throw std::invalid_argument {MALFORMED};
     }
     int coverage = atoi(coverage_str);
 
-    char* read_bases = strtok_r(nullptr, DELIM, &saveptr);
+    char* read_bases = strtok_r(nullptr, FIELD_SEPARATORS, &saveptr);
     if (read_bases == nullptr) {
         throw std::invalid_argument {MALFORMED};
     }
@@ -45,7 +45,7 @@ PileupLine parsePileupLine(char* line, bool parse_base_qualities, bool parse_map
     result.base_counts = std::move(stack.counts);
 
     // ensure pointer is advanced if only mapping qualities are to be parsed
-    char* base_qualities = strtok_r(nullptr, DELIM, &saveptr);
+    char* base_qualities = strtok_r(nullptr, FIELD_SEPARATORS, &saveptr);
 
     // parse base qualities if necessary
     if (parse_base_qualities) {
@@ -57,7 +57,7 @@ PileupLine parsePileupLine(char* line, bool parse_base_qualities, bool parse_map
 
     // parse mapping qualities if necessary
     if (parse_mapping_qualities) {
-        char* mapping_qualities = strtok_r(nullptr, DELIM, &saveptr);
+        char* mapping_qualities = strtok_r(nullptr, FIELD_SEPARATORS, &saveptr);
         if (mapping_qualities == nullptr) {
             throw std::invalid_argument {MALFORMED_OR_MISSING};
         }
@@ -85,42 +85,42 @@ ReadStack parseReadBases(const char* read_bases, char reference, int coverage) {
             case 'a':
                 result.bases.push_back('A');
                 result.strands.push_back(0);
-                result.counts[0] += 1;
+                ++result.counts[0];
                 break;
             case 'A':
                 result.bases.push_back('A');
                 result.strands.push_back(1);
-                result.counts[0] += 1;
+                ++result.counts[0];
                 break;
             case 'c':
                 result.bases.push_back('C');
                 result.strands.push_back(0);
-                result.counts[1] += 1;
+                ++result.counts[1];
                 break;
             case 'C':
                 result.bases.push_back('C');
                 result.strands.push_back(1);
-                result.counts[1] += 1;
+                ++result.counts[1];
                 break;
             case 'g':
                 result.bases.push_back('G');
                 result.strands.push_back(0);
-                result.counts[2] += 1;
+                ++result.counts[2];
                 break;
             case 'G':
                 result.bases.push_back('G');
                 result.strands.push_back(1);
-                result.counts[2] += 1;
+                ++result.counts[2];
                 break;
             case 't':
                 result.bases.push_back('T');
                 result.strands.push_back(0);
-                result.counts[3] += 1;
+                ++result.counts[3];
                 break;
             case 'T':
                 result.bases.push_back('T');
                 result.strands.push_back(1);
-                result.counts[3] += 1;
+                ++result.counts[3];
                 break;
             case '^':
                 // skip next char
@@ -164,4 +164,55 @@ std::vector<uint8_t> parseQualities(const char* base_qualities, int coverage) {
         result.push_back(quality);
     }
     return result;
+}
+
+std::vector<UniqueProfile> countUniqueProfiles(const std::vector<PileupLine>& pileup) {
+    if (pileup.size() == 0) {
+        return {};
+    }
+    std::vector<const profile_t*> profiles;
+    profiles.reserve(pileup.size());
+    std::transform(pileup.begin(), pileup.end(), std::back_inserter(profiles),
+        [](const PileupLine& line) {
+            return &line.base_counts;
+        });
+    std::sort(profiles.begin(), profiles.end(),
+        [](const profile_t* a, const profile_t* b) {
+            return *a < *b;
+        });
+
+    std::vector<UniqueProfile> unique_profiles;
+    unique_profiles.reserve(pileup.size());
+    // initialize with first profile, will be incremented in first loop pass
+    unique_profiles.emplace_back(*profiles[0], 0);
+    for (const auto p : profiles) {
+        if (*p == unique_profiles.back().profile) {
+            unique_profiles.back().count += 1;
+        } else {
+            unique_profiles.emplace_back(*p, 1);
+        }
+    }
+
+    return unique_profiles;
+}
+
+std::array<double, 4> computeNucleotideDistribution(const std::vector<UniqueProfile>& profiles) {
+    std::array<uint64_t, 4> acc {0,0,0,0};
+    uint64_t total = 0;
+    for (UniqueProfile p : profiles) {
+        total += p.count * p.coverage;
+        for (int i = 0; i < 4; ++i) {
+            acc[i] += p.count * p.profile[i];
+        }
+    }
+
+    if (total != 0) {
+        return {
+            double(acc[0]) / double(total),
+            double(acc[1]) / double(total),
+            double(acc[2]) / double(total),
+            double(acc[3]) / double(total)};
+    } else {
+        return {0.25,0.25,0.25,0.25};
+    }
 }
