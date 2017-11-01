@@ -68,19 +68,32 @@ std::vector<OutputRecord> callLikelihoodRatio(std::istream& in) {
 	std::cerr << "# error: " << estimate.error_rate << std::endl;
 
 	std::map<profile_t, size_t> index_of_profile;
-	size_t i = 0;
+	size_t index = 0;
 	for (const auto& p : unique_profiles) {
-		index_of_profile.emplace(p.profile, i++);
+		index_of_profile.emplace(p.profile, index++);
 	}
+
+	std::vector<double> p_values_heterozygous;
+	std::vector<double> p_values_homozygous;
+	p_values_heterozygous.reserve(unique_profiles.size());
+	p_values_homozygous.reserve(unique_profiles.size());
+
+	for (size_t i = 0; i < unique_profiles.size(); ++i) {
+		double p1 = likelihoodRatioTest(estimate.profile_likelihoods[i].L_heterozygous,
+										estimate.profile_likelihoods[i].L_homozygous);
+		p_values_homozygous.push_back(p1);
+		double p2 = likelihoodRatioTest(estimate.profile_likelihoods[i].L_homozygous,
+										estimate.profile_likelihoods[i].L_heterozygous);
+		p_values_heterozygous.push_back(p2);
+	}
+	auto adjusted_p_values_homozygous = adjustBenjaminiHochberg(p_values_homozygous);
+	auto adjusted_p_values_heterozygous = adjustBenjaminiHochberg(p_values_heterozygous);
 
 	std::vector<Classification> profile_classes;
 	profile_classes.reserve(unique_profiles.size());
-
-	for (size_t i = 0; i < estimate.profile_likelihoods.size(); ++i) {
-		double p1 = likelihoodRatioTest(estimate.profile_likelihoods[i].L_heterozygous,
-										estimate.profile_likelihoods[i].L_homozygous);
-		double p2 = likelihoodRatioTest(estimate.profile_likelihoods[i].L_homozygous,
-										estimate.profile_likelihoods[i].L_heterozygous);
+	for (size_t i = 0; i < unique_profiles.size(); ++i) {
+		auto p1 = adjusted_p_values_homozygous[i];
+		auto p2 = adjusted_p_values_heterozygous[i];
 
 		std::string label {"hom"};
 		if (p2 < 0.05) {
