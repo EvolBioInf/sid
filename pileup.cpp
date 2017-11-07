@@ -182,7 +182,6 @@ std::vector<UniqueProfile> countUniqueProfiles(const std::vector<PileupLine>& pi
         });
 
     std::vector<UniqueProfile> unique_profiles;
-    unique_profiles.reserve(pileup.size());
     // initialize with first profile, will be incremented in first loop pass
     unique_profiles.emplace_back(*profiles[0], 0);
     for (const auto p : profiles) {
