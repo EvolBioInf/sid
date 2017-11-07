@@ -47,7 +47,7 @@ std::vector<PileupLine> readFileParallel(std::istream& in, const bool parse_base
 	return result;
 }
 
-std::vector<OutputRecord> callLikelihoodRatio(std::istream& in) {
+std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_prior) {
 	auto inputRecords = readFile(in, false, false);
 	auto unique_profiles = countUniqueProfiles(inputRecords);
 
@@ -79,11 +79,15 @@ std::vector<OutputRecord> callLikelihoodRatio(std::istream& in) {
 	p_values_homozygous.reserve(unique_profiles.size());
 
 	for (size_t i = 0; i < unique_profiles.size(); ++i) {
-		double p1 = likelihoodRatioTest(estimate.profile_likelihoods[i].L_heterozygous,
-										estimate.profile_likelihoods[i].L_homozygous);
+        auto L_het = estimate.profile_likelihoods[i].L_heterozygous;
+        auto L_hom = estimate.profile_likelihoods[i].L_homozygous;
+        if (use_prior) {
+            L_het *= estimate.heterozygosity;
+            L_hom *= 1 - estimate.heterozygosity;
+        }
+		double p1 = likelihoodRatioTest(L_het, L_hom);
 		p_values_homozygous.push_back(p1);
-		double p2 = likelihoodRatioTest(estimate.profile_likelihoods[i].L_homozygous,
-										estimate.profile_likelihoods[i].L_heterozygous);
+		double p2 = likelihoodRatioTest(L_hom, L_het);
 		p_values_heterozygous.push_back(p2);
 	}
 	auto adjusted_p_values_homozygous = adjustBenjaminiHochberg(p_values_homozygous);
