@@ -47,7 +47,14 @@ double compoundLikelihood(const gsl_vector* v, void* parameter_data) {
         long double L = (1. - pi) * homozygousLikelihood(p, epsilon, parameters->nucleotide_distribution)
             + pi * heterozygousLikelihood(p, epsilon, parameters->nucleotide_distribution);
         if (L > 0) {
-            logLikelihood += log(L) * p.count;
+            logLikelihood += logl(L) * p.count;
+        }
+    }
+    if (isinf(logLikelihood)) {
+        if (logLikelihood > 0) {
+            logLikelihood = numeric_limits<long double>::max();
+        } else {
+            logLikelihood = -numeric_limits<long double>::max();
         }
     }
     return static_cast<double>(-logLikelihood);
