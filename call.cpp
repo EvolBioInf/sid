@@ -47,6 +47,16 @@ std::vector<PileupLine> readFileParallel(std::istream& in, const bool parse_base
 	return result;
 }
 
+std::pair<int, int> getMajorAlleleIndices(const UniqueProfile p) {
+    std::array<int, 4> indices {0,1,2,3};
+    std::sort(indices.begin(), indices.end(),
+        [&p](const size_t a, const size_t b) {
+            return p.profile[a] < p.profile[b];
+        });
+    // index of base with hightest (second highest) number of occurences on current site
+    return {indices[3], indices[2]};
+}
+
 std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_prior) {
 	auto inputRecords = readFile(in, false, false);
 	auto unique_profiles = countUniqueProfiles(inputRecords);
@@ -96,15 +106,21 @@ std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_p
 	std::vector<Classification> profile_classes;
 	profile_classes.reserve(unique_profiles.size());
 	for (size_t i = 0; i < unique_profiles.size(); ++i) {
-		auto p1 = adjusted_p_values_homozygous[i];
-		auto p2 = adjusted_p_values_heterozygous[i];
+		const auto p1 = adjusted_p_values_homozygous[i];
+		const auto p2 = adjusted_p_values_heterozygous[i];
+
+        const auto& p = unique_profiles[i];
+
+        auto major = getMajorAlleleIndices(p);
 
 		std::string label {"hom"};
+        std::string genotype {"ACGT"[major.first], "ACGT"[major.first]};
 		if (p2 < 0.05) {
 			label = "het";
+            genotype[1] = "ACGT"[major.second];
 		}
 		profile_classes.push_back({
-			label, "NN", static_cast<double>(p1), static_cast<double>(p2), "p_value", {}
+			label, genotype, static_cast<double>(p1), static_cast<double>(p2), "p_value", {}
 		});
 	}
 
@@ -162,10 +178,13 @@ std::vector<OutputRecord> callBayes(std::istream& in) {
 		auto probability_homozygous = aposteriori_homozygous / (aposteriori_homozygous + aposteriori_heterozygous);
 		auto probability_heterozygous = aposteriori_heterozygous / (aposteriori_homozygous + aposteriori_heterozygous);
 
+        auto major = getMajorAlleleIndices(unique_profiles[i]);
+
 		std::string label {"hom"};
-		std::string genotype {"NN"};
+        std::string genotype {"ACGT"[major.first], "ACGT"[major.first]};
 		if (probability_heterozygous > probability_homozygous) {
 			label = "het";
+            genotype[1] = "ACGT"[major.second];
 		}
 		profile_classes.push_back({
 			label, genotype, static_cast<double>(probability_homozygous), static_cast<double>(probability_heterozygous), "probability", {}
@@ -215,28 +234,22 @@ std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_
 	std::vector<Classification> profile_classes;
 	profile_classes.reserve(unique_profiles.size());
 	for (const UniqueProfile& p : unique_profiles) {
-		std::array<int, 4> indices {0,1,2,3};
-		std::sort(indices.begin(), indices.end(),
-			[&p](const size_t a, const size_t b) {
-				return p.profile[a] < p.profile[b];
-			});
-		// index of base with hightest (second highest) number of occurences on current site
-		auto ref0 = indices[3];
-		auto ref1 = indices[2];
+		// indices of base with highest and second highest number of occurences on current site
+        auto major = getMajorAlleleIndices(p);
 
 		// homozygous: ML site error = (n2+n3+n4)/(n1+n2+n3+n4)
-		double error1 = static_cast<double>(p.coverage - p.profile[ref0]) / static_cast<double>(p.coverage);
+		double error1 = static_cast<double>(p.coverage - p.profile[major.first]) / static_cast<double>(p.coverage);
 		if (error1 > error_threshold) {
 			error1 = error_threshold;
 		}
-		long double l1 = homozygousLikelihood(p, error1, ref0);
+		long double l1 = homozygousLikelihood(p, error1, major.first);
 
 		// heterozygous: ML site error = 1.5 * (n3+n4)/(n1+n2+n3+n4)
-		double error2 = 1.5 * static_cast<double>(p.coverage - p.profile[ref0] - p.profile[ref1]) / static_cast<double>(p.coverage);
+		double error2 = 1.5 * static_cast<double>(p.coverage - p.profile[major.first] - p.profile[major.second]) / static_cast<double>(p.coverage);
 		if (error2 > error_threshold) {
 			error2 = error_threshold;
 		}
-		long double l2 = heterozygousLikelihood(p, error2, ref0, ref1);
+		long double l2 = heterozygousLikelihood(p, error2, major.first, major.second);
 
 		if (snp_prior > 0) {
 			l1 *= (1 - snp_prior);
@@ -247,10 +260,10 @@ std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_
 		double p2 = likelihoodRatioTest(l1, l2);
 
 		std::string label {"hom"};
-		std::string genotype {"ACGT"[ref0], "ACGT"[ref0]};
+		std::string genotype {"ACGT"[major.first], "ACGT"[major.first]};
 		if (l2 > l1 && p2 < 0.05) {
 			label = "het";
-			genotype[1] = "ACGT"[ref1]; 
+			genotype[1] = "ACGT"[major.second]; 
 		}
 		profile_classes.push_back({
 			label, genotype, static_cast<double>(p1), static_cast<double>(p2), "p_value", {}
