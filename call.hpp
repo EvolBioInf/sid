@@ -37,10 +37,10 @@ inline std::ostream& operator<<(std::ostream& os, const OutputRecord& r) {
     return os;
 }
 
-std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_prior);
+std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_prior, const double significance_level);
 std::vector<OutputRecord> callBayes(std::istream& in);
-std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_prior, double prior, double error_threshold);
-std::vector<OutputRecord> callQualityBasedSimple(std::istream& in, const bool estimate_prior, double prior);
+std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_prior, double prior, double error_threshold, const double significance_level);
+std::vector<OutputRecord> callQualityBasedSimple(std::istream& in, const bool estimate_prior, double prior, const double significance_level);
 
 
 // #endif

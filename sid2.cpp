@@ -90,13 +90,13 @@ int main(int argc, char** argv) {
 
         std::vector<OutputRecord> output_records;
         if (global_options.method == "local") {
-            output_records = callSiteMLError(in, global_options.estimate_prior, global_options.snp_prior, global_options.site_error_threshold);
+            output_records = callSiteMLError(in, global_options.estimate_prior, global_options.snp_prior, global_options.site_error_threshold, global_options.significance_level);
         } else if (global_options.method == "bayes") {
             output_records = callBayes(in);
         } else if (global_options.method == "likelihood_ratio") {
-            output_records = callLikelihoodRatio(in, global_options.estimate_prior);
+            output_records = callLikelihoodRatio(in, global_options.estimate_prior, global_options.significance_level);
         } else if (global_options.method == "quality") {
-            output_records = callQualityBasedSimple(in, global_options.estimate_prior, global_options.snp_prior);
+            output_records = callQualityBasedSimple(in, global_options.estimate_prior, global_options.snp_prior, global_options.significance_level);
         }
 
         std::cout << "chrom,pos,label,gt,hom_conf,het_conf,conf_type" << std::endl;

@@ -57,7 +57,7 @@ std::pair<int, int> getMajorAlleleIndices(const UniqueProfile p) {
     return {indices[3], indices[2]};
 }
 
-std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_prior) {
+std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_prior, const double significance_level) {
 	auto inputRecords = readFile(in, false, false);
 	auto unique_profiles = countUniqueProfiles(inputRecords);
 
@@ -115,7 +115,7 @@ std::vector<OutputRecord> callLikelihoodRatio(std::istream& in, const bool use_p
 
 		std::string label {"hom"};
         std::string genotype {"ACGT"[major.first], "ACGT"[major.first]};
-		if (p2 < 0.05) {
+		if (p2 < significance_level) {
 			label = "het";
             genotype[1] = "ACGT"[major.second];
 		}
@@ -208,7 +208,7 @@ std::vector<OutputRecord> callBayes(std::istream& in) {
 	return output_records;
 }
 
-std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_prior, double snp_prior, double error_threshold) {
+std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_prior, double snp_prior, double error_threshold, const double significance_level) {
 	auto inputRecords = readFile(in, false, false);
 	auto unique_profiles = countUniqueProfiles(inputRecords);
 
@@ -261,7 +261,7 @@ std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_
 
 		std::string label {"hom"};
 		std::string genotype {"ACGT"[major.first], "ACGT"[major.first]};
-		if (l2 > l1 && p2 < 0.05) {
+		if (l2 > l1 && p2 < significance_level) {
 			label = "het";
 			genotype[1] = "ACGT"[major.second]; 
 		}
@@ -286,7 +286,7 @@ std::vector<OutputRecord> callSiteMLError(std::istream& in, const bool estimate_
 
 }
 
-std::vector<OutputRecord> callQualityBasedSimple(std::istream& in, const bool estimate_prior, double snp_prior) {
+std::vector<OutputRecord> callQualityBasedSimple(std::istream& in, const bool estimate_prior, double snp_prior, const double significance_level) {
 	auto input_records = readFile(in, true, true);
 	std::vector<OutputRecord> output_records (input_records.size());
 
@@ -359,7 +359,7 @@ std::vector<OutputRecord> callQualityBasedSimple(std::istream& in, const bool es
 
 		std::string label {"hom"};
 		std::string genotype {"ACGT"[ref0], "ACGT"[ref0]};
-		if (p2 < 0.05) {
+		if (p2 < significance_level) {
 			label = "het";
 			genotype[1] = "ACGT"[ref1]; 
 		}
