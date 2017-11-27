@@ -11,8 +11,10 @@
 std::vector<PileupLine> readFile(std::istream& in, const bool parse_base_qualities, const bool parse_mapping_qualities) {
 	std::vector<PileupLine> result;
 	for (std::string line; std::getline(in, line); ) {
-		PileupLine plp = parsePileupLine(&line[0u], parse_base_qualities, parse_mapping_qualities);
-		result.push_back(std::move(plp));
+        if (line.size() > 0) {
+            PileupLine plp = parsePileupLine(&line[0u], parse_base_qualities, parse_mapping_qualities);
+            result.push_back(std::move(plp));
+        }
 	}
 	return result;
 }
