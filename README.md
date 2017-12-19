@@ -24,13 +24,11 @@ sudo make install
 ## Usage
 
 For preprocessing, a working installation of [`samtools`](http://www.htslib.org/) is needed. Given
-the aligned sequencing data in SAM or BAM format, a pileup needs to be generated:
-```
-samtools mpileup input.bam > pileup.dat
-```
-Useful parameters for the `samtools mpileup` program are `-C 50`, which is recommended for
-BWA-aligned reads, and `-q 1` which discards reads with ambiguous mapping. The switches `-q` and
-`-Q` can be used to set a lower threshold for mapping quality and base quality, respectively.
+the aligned sequencing data in SAM or BAM format, a pileup needs to be generated: ``` samtools
+mpileup input.bam > pileup.dat ``` Useful parameters for the `samtools mpileup` program are `-C 50`,
+which is recommended for [BWA-aligned](http://bio-bwa.sourceforge.net/) reads, and `-q 1` which
+discards reads with ambiguous mapping. The switches `-q` and `-Q` can be used to set a lower
+threshold for mapping quality and base quality, respectively.
 
 The pileup is then used as the `sid` input:
 ```
