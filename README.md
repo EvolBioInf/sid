@@ -1,7 +1,7 @@
 # SNPs from diploid genomes
 
 The `sid` program can be used to detect single nucleotide polymorphisms in aligned sequencing reads.
-Based on the pileup output of (Samtools)[http://www.htslib.org/], for each genome site the most
+Based on the pileup output of [Samtools](http://www.htslib.org/), for each genome site the most
 likely genotype is computed.
 
 ## Installation
@@ -23,7 +23,7 @@ sudo make install
 
 ## Usage
 
-For preprocessing, a working installation of (`samtools`)[http://www.htslib.org/] is needed. Given
+For preprocessing, a working installation of [`samtools`](http://www.htslib.org/) is needed. Given
 the aligned sequencing data in SAM or BAM format, a pileup needs to be generated:
 ```
 samtools mpileup input.bam > pileup.dat
